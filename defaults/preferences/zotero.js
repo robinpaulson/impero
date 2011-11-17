@@ -131,7 +131,7 @@ pref("extensions.zotero.sync.autoSync", true);
 pref("extensions.zotero.sync.server.username", '');
 pref("extensions.zotero.sync.server.compressData", true);
 pref("extensions.zotero.sync.location.sync", "https://sync.zotero.org/");
-pref("extensions.zotero.api.location", "https://api.zotero.org/");
+pref("extensions.zotero.api.location", "https://api.zotero.org/"); //TODO: change pref name to ext.z.sync.location.api
 pref("extensions.zotero.sync.location", "zotero_sync");
 pref("extensions.zotero.sync.storage.enabled", true);
 pref("extensions.zotero.sync.storage.protocol", "zotero");
