@@ -14,7 +14,7 @@
     <em:developer>Simon Kornblith</em:developer>
     <em:developer>David Norton</em:developer>
     <em:developer>Dan Stillman</em:developer>
-    <em:homepageURL>https://bumblepuppy.org/blog/?tag=zotero</em:homepageURL>
+    <em:homepageURL>http://bumblepuppy.org/blog/?tag=zotero</em:homepageURL>
     <em:optionsURL>chrome://zotero/content/preferences/preferences.xul</em:optionsURL>
     <em:aboutURL>chrome://zotero/content/about.xul</em:aboutURL>
     <em:iconURL>chrome://zotero/skin/zotero_z_32px.png</em:iconURL>
