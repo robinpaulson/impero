@@ -1,4 +1,4 @@
-Domino is an experimental fork of the Zotero extension for Firefox. It is is no way connected to the organisation behind Zotero, other than using the code they have released under the AGPL. It is not blessed by the original authors, and no support is available from them.
+Domino is an experimental fork of the Zotero extension for Firefox. It is in no way connected to the organisation behind Zotero, other than using the code they have released under the AGPL. It is not blessed by the original authors, and no support is available from them.
 
 The intention of Domino is to make modifications to Zotero, to allow a user to synchronise their data with a server hosted at a location other than on zotero.org.
 
