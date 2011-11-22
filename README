@@ -4,6 +4,6 @@ The intention of the modifications here is to allow a user to synchronise their 
 
 The extension provided here should be considered unstable, and not for use in a production environment.
 
-There is a risk of data loss if you do noty know what you are doing.
+There is a risk of data loss if you do not know what you are doing.
 
 In order to use the fucntions provided, you will also need to install and set up a zotero data server. See https://github.com/robinpaulson/dataserver for the source.
