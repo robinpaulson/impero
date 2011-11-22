@@ -7,3 +7,8 @@ The extension provided here should be considered unstable, and not for use in a 
 There is a risk of data loss if you do not know what you are doing.
 
 In order to use the fucntions provided, you will also need to install and set up a zotero data server. See https://github.com/robinpaulson/dataserver for the source.
+
+The extension is available pre-built from:
+
+Alternatively, run the build-script file to build it yourself. You will need to add in the 'translators' and 'styles' submodules first.
+
