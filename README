@@ -1,0 +1,9 @@
+This is an experimental fork of the Zotero extension for Firefox. It is is no way connected to the organisation behind Zotero, other than using the code they have released under the AGPL. It is not blessed by the original authors, and no support is available from them.
+
+The intention of the modifications here is to allow a user to synchronise their data with a server hosted at a location other than on zotero.org.
+
+The extension provided here should be considered unstable, and not for use in a production environment.
+
+There is a risk of data loss if you do noty know what you are doing.
+
+In order to use the fucntions provided, you will also need to install and set up a zotero data server. See https://github.com/robinpaulson/dataserver for the source.
