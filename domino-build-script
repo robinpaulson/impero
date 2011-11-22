@@ -1,0 +1,91 @@
+!/bin/sh
+# Build domino-multi XPI
+# TODO: some xslt to get version number from install.rdf and use for version number in file name
+APP_NAME=domino
+APP_VERSION=3.0b3
+SUFFIX=.xpi
+INSTALLER_NAME=$APP_NAME$APP_VERSION$SUFFIX
+set -e
+
+for i in build build/styles build/translators; do
+if [ ! -d $i ]; then
+mkdir $i
+  fi
+done
+
+cp translators/deleted.txt .
+
+for i in chrome components defaults scripts; do
+find $i -path "*/\.git" -prune -o -name "*~" -prune -o -print | zip $INSTALLER_NAME -@
+done
+
+for i in chrome.manifest COPYING deleted.txt install.rdf repotime.txt engines.json *.sql; do
+echo $i | zip $INSTALLER_NAME -@
+done
+
+# Update styles
+cp styles/* build/styles
+
+#for i in $(ls styles); do
+# if [ ! -f build/styles-0.8/$i ]; then
+# BASENAME=$(basename $i .csl)
+# echo Fetching CSL style ${BASENAME} from zotero.org
+# wget http://www.zotero.org/styles/${BASENAME}?install=1 -q -O build/styles-0.8/${BASENAME}.csl
+# fi
+#done
+
+# Convert styles
+#CONVERT="false"
+#for i in $(ls build/styles-0.8); do
+# BASENAME=$(basename $i)
+# if [ ! -f build/styles/${BASENAME} ]; then
+# echo Missing CSL 1.0 file for ${BASENAME}, reprocessing all files ...
+# CONVERT="true"
+# fi
+#done
+#if [ "${CONVERT}" == "true" ]; then
+# ../csl-utils/update-styles.sh --csl-input=../zotero-multi/build/styles-0.8 --csl-output=../zotero-multi/build/styles
+#fi
+
+# Zip styles
+cd build/styles
+zip styles *.csl
+cd ../..
+mv build/styles/styles.zip .
+
+# Initialize translators.index
+if [ -f translators.index ]; then
+rm translators.index
+fi
+touch translators.index
+
+# Copy translator files into build directory, logging each as copied
+COUNT=0
+for i in translators/*.js; do
+FILENAME=$(echo ${COUNT}.js)
+  KEY=$(grep -m 1 translatorID "$i"| sed -e "s/.*translatorID\" *: *\"\([^\"]\+\)\".*/\\1/")
+  NAME=$(grep -m 1 label "$i"| sed -e "s/.*label\" *: *\"\([^\"]\+\)\".*/\\1/")
+  DATE=$(grep -m 1 lastUpdated "$i"| sed -e "s/.*lastUpdated\" *: *\"\([^\"]\+\)\".*/\\1/")
+  echo ${FILENAME},${KEY},${NAME},${DATE} >> translators.index
+  cp "$i" build/translators/${FILENAME}
+  echo -n "${FILENAME} "
+  echo $((COUNT++)) > /dev/null
+done
+
+# Zip translators
+cd build/translators
+zip translators *.js
+cd ../..
+mv build/translators/translators.zip .
+
+# Add styles, translators and translators.index to XPI
+echo styles.zip | zip $INSTALLER_NAME -@
+echo translators.index | zip $INSTALLER_NAME -@
+echo translators.zip | zip $INSTALLER_NAME -@
+
+rm translators.index
+rm styles.zip
+rm translators.zip
+#rm -fR build
+
+sha1sum $INSTALLER_NAME > file_hash
