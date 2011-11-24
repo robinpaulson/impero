@@ -86,6 +86,7 @@ echo translators.zip | zip $INSTALLER_NAME -@
 rm translators.index
 rm styles.zip
 rm translators.zip
-#rm -fR build
+rm -fR build
 
-sha1sum $INSTALLER_NAME > file_hash
+# sha1sum $INSTALLER_NAME > file_hash
+# logic here to insert file_hash into install.rdf file with xslt
