@@ -287,7 +287,7 @@ Zotero.Utilities.Translate.prototype.retrieveDocument = function(url) {
 	}
 	
 	var hiddenBrowser = Zotero.Browser.createHiddenBrowser();
-	if(translate.cookieSandbox) translate.cookieSandbox.attachToBrowser(hiddenBrowser);
+	if(this._translate.cookieSandbox) this._translate.cookieSandbox.attachToBrowser(hiddenBrowser);
 	
 	hiddenBrowser.addEventListener("pageshow", listener, true);
 	hiddenBrowser.loadURI(url);
@@ -340,9 +340,9 @@ Zotero.Utilities.Translate.prototype.retrieveSource = function(url, body, header
 		var listener = function() { finished = true };
 		
 		if(body) {
-			var xmlhttp = Zotero.HTTP.doPost(url, body, listener, headers, responseCharset, translate.cookieSandbox);
+			var xmlhttp = Zotero.HTTP.doPost(url, body, listener, headers, responseCharset, this._translate.cookieSandbox);
 		} else {
-			var xmlhttp = Zotero.HTTP.doGet(url, listener, responseCharset, translate.cookieSandbox);
+			var xmlhttp = Zotero.HTTP.doGet(url, listener, responseCharset, this._translate.cookieSandbox);
 		}
 		
 		while(!finished) mainThread.processNextEvent(true);
