@@ -19,7 +19,7 @@ for i in chrome components defaults scripts; do
 find $i -path "*/\.git" -prune -o -name "*~" -prune -o -print | zip $INSTALLER_NAME -@
 done
 
-for i in chrome.manifest COPYING deleted.txt install.rdf repotime.txt engines.json *.sql; do
+for i in chrome.manifest COPYING README deleted.txt install.rdf update.rdf repotime.txt engines.json *.sql; do
 echo $i | zip $INSTALLER_NAME -@
 done
 
