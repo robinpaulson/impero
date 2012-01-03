@@ -1,7 +1,7 @@
 !/bin/sh
-# Build domino-multi XPI
+# Build impero-multi XPI
 # TODO: some xslt to get version number from install.rdf and use for version number in file name
-APP_NAME=domino
+APP_NAME=impero
 APP_VERSION=3.0b3
 SUFFIX=.xpi
 INSTALLER_NAME=$APP_NAME$APP_VERSION$SUFFIX
