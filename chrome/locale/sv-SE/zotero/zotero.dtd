@@ -56,7 +56,7 @@
 <!ENTITY zotero.items.rights_column "Rättigheter">
 <!ENTITY zotero.items.dateAdded_column "Tillagt datum">
 <!ENTITY zotero.items.dateModified_column "Ändrat datum">
-<!ENTITY zotero.items.numChildren_column "Visa/dölj underordnade">
+<!ENTITY zotero.items.numChildren_column "+">
 
 <!ENTITY zotero.items.menu.showInLibrary "Visa i bibliotek">
 <!ENTITY zotero.items.menu.attach.note "Lägg till anteckning">
@@ -69,6 +69,10 @@
 
 <!ENTITY zotero.items.menu.restoreToLibrary "Restore to Library">
 <!ENTITY zotero.items.menu.duplicateItem "Duplicera vald post">
+<!ENTITY zotero.items.menu.mergeItems "Merge Items…">
+
+<!ENTITY zotero.duplicatesMerge.versionSelect "Choose the version of the item to use as the master item:">
+<!ENTITY zotero.duplicatesMerge.fieldSelect "Select fields to keep from other versions of the item:">
 
 <!ENTITY zotero.toolbar.newItem.label "Ny post">
 <!ENTITY zotero.toolbar.moreItemTypes.label "Mer">

@@ -112,12 +112,12 @@ const CSL_TYPE_MAPPINGS = {
 	'case':"legal_case",
 	'hearing':"bill",				// ??
 	'patent':"patent",
-	'statute':"bill",				// ??
+	'statute':"legislation",		// ??
 	'email':"personal_communication",
 	'map':"map",
-	'blogPost':"webpage",
+	'blogPost':"post-weblog",
 	'instantMessage':"personal_communication",
-	'forumPost':"webpage",
+	'forumPost':"post",
 	'audioRecording':"song",		// ??
 	'presentation':"speech",
 	'videoRecording':"motion_picture",
@@ -140,19 +140,24 @@ Zotero.Utilities = {
 	 * @return {Object} firstName, lastName, and creatorType
 	 */
 	"cleanAuthor":function(author, type, useComma) {
-		const allCapsRe = /^[A-Z\u0400-\u042f]+$/;
-		
+		var allCaps = 'A-Z' + 
+									'\u0400-\u042f';		//cyrilic
+
+		var allCapsRe = new RegExp('^[' + allCaps + ']+$');
+		var initialRe = new RegExp('^-?[' + allCaps + ']$');
+
 		if(typeof(author) != "string") {
 			throw "cleanAuthor: author must be a string";
 		}
-		
-		author = author.replace(/^[\s\.\,\/\[\]\:]+/, '');
-		author = author.replace(/[\s\,\/\[\]\:\.]+$/, '');
-		author = author.replace(/  +/, ' ');
+
+		author = author.replace(/^[\s\u00A0\.\,\/\[\]\:]+/, '')
+									  .replace(/[\s\u00A0\.\,\/\[\]\:]+$/, '')
+									.replace(/[\s\u00A0]+/, ' ');
+
 		if(useComma) {
 			// Add spaces between periods
 			author = author.replace(/\.([^ ])/, ". $1");
-			
+
 			var splitNames = author.split(/, ?/);
 			if(splitNames.length > 1) {
 				var lastName = splitNames[0];
@@ -165,7 +170,7 @@ Zotero.Utilities = {
 			var lastName = author.substring(spaceIndex+1);
 			var firstName = author.substring(0, spaceIndex);
 		}
-		
+
 		if(firstName && allCapsRe.test(firstName) &&
 				firstName.length < 4 &&
 				(firstName.length == 1 || lastName.toUpperCase() != lastName)) {
@@ -176,7 +181,23 @@ Zotero.Utilities = {
 			}
 			firstName = newFirstName.substr(1);
 		}
-		
+
+		//add periods after all the initials
+		if(firstName) {
+			var names = firstName.replace(/^[\s\.]+/,'')
+						.replace(/[\s\,]+$/,'')
+						//remove spaces surronding any dashes
+						.replace(/\s*([\u002D\u00AD\u2010-\u2015\u2212\u2E3A\u2E3B])\s*/,'-')
+						.split(/(?:[\s\.]+|(?=-))/);
+			var newFirstName = '';
+			for(var i=0, n=names.length; i<n; i++) {
+				newFirstName += names[i];
+				if(initialRe.test(names[i])) newFirstName += '.';
+				newFirstName += ' ';
+			}
+			firstName = newFirstName.replace(/ -/g,'-').trim();
+		}
+
 		return {firstName:firstName, lastName:lastName, creatorType:type};
 	},
 	
@@ -215,8 +236,8 @@ Zotero.Utilities = {
 			throw "superCleanString: argument must be a string";
 		}
 		
-		var x = x.replace(/^[\x00-\x27\x29-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, "");
-		return x.replace(/[\x00-\x28\x2A-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+$/, "");
+		var x = x.replace(/^[\x00-\x27\x29-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F\s]+/, "");
+		return x.replace(/[\x00-\x28\x2A-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F\s]+$/, "");
 	},
 	
 	/**
@@ -241,7 +262,7 @@ Zotero.Utilities = {
 			throw "cleanDOI: argument must be a string";
 		}
 		
-		return x.match(/10\.[^\s\/]+\/[^\s]+/);
+		return x.match(/10\.[0-9]{4,}\/[^\s]*[^\s\.,]/);
 	},
 
 	/**
@@ -612,7 +633,7 @@ Zotero.Utilities = {
 			"down", "as"];
 		
 		// this may only match a single character
-		const delimiterRegexp = /([ \/\-–—])/;
+		const delimiterRegexp = /([ \/\u002D\u00AD\u2010-\u2015\u2212\u2E3A\u2E3B])/;
 		
 		string = this.trimInternal(string);
 		string = string.replace(/ : /g, ": ");
@@ -972,7 +993,7 @@ Zotero.Utilities = {
 			strings[i] = elements[i].textContent;
 		}
 		
-		return strings.join(delimiter ? delimiter : ", ");
+		return strings.join(delimiter !== undefined ? delimiter : ", ");
 	},
 	
 	/**
@@ -998,25 +1019,60 @@ Zotero.Utilities = {
 	 *
 	 * Adapted from http://binnyva.blogspot.com/2005/10/dump-function-javascript-equivalent-of.html
 	 */
-	"varDump":function(arr,level) {
+	"varDump":function(arr,level,maxLevel,parentObjects,path) {
 		var dumped_text = "";
 		if (!level){
 			level = 0;
 		}
-		
+
+		if (!maxLevel) {
+			maxLevel = 4;
+		}
+
 		// The padding given at the beginning of the line.
 		var level_padding = "";
 		for (var j=0;j<level+1;j++){
 			level_padding += "    ";
 		}
+
+		if (level > maxLevel){
+			return dumped_text + level_padding + "<<Maximum depth reached>>...\n";
+		}
 		
 		if (typeof(arr) == 'object') { // Array/Hashes/Objects
+			//array for checking recursion
+			//initialise at first itteration
+			if(!parentObjects) {
+				parentObjects = [arr];
+				path = ['ROOT'];
+			}
+
 			for (var item in arr) {
 				var value = arr[item];
 				
-				if (typeof(value) == 'object') { // If it is an array,
-					dumped_text += level_padding + "'" + item + "' ...\n";
-					dumped_text += arguments.callee(value,level+1);
+				if (typeof(value) == 'object') { // If it is an array
+					//check for recursion
+					var i = parentObjects.indexOf(value);
+					if(i != -1) {
+						var parentName = path.slice(0,i+1).join('->');
+						dumped_text += level_padding + "'" + item + "' => <<Reference to parent object " + parentName + " >>\n";
+						continue;
+					}
+
+					var openBrace = '{', closeBrace = '}';
+					var type = Object.prototype.toString.call(value);
+					if(type == '[object Array]') {
+						openBrace = '[';
+						closeBrace = ']';
+					}
+
+					dumped_text += level_padding + "'" + item + "' => " + openBrace;
+					//only recurse if there's anything in the object, purely cosmetical
+					for(var i in value) {
+						dumped_text += "\n" + Zotero.Utilities.varDump(value,level+1,maxLevel,parentObjects.concat([value]),path.concat([item])) + level_padding;
+						break;
+					}
+					dumped_text += closeBrace + "\n";
 				}
 				else {
 					if (typeof value == 'function'){
@@ -1082,7 +1138,7 @@ Zotero.Utilities = {
 		
 		var typeID = Zotero.ItemTypes.getID(item.itemType);
 		if(!typeID) {
-			Zotero.debug("Translate: Invalid itemType "+item.itemType+"; saving as webpage");
+			Zotero.debug("itemToServerJSON: Invalid itemType "+item.itemType+"; using webpage");
 			item.itemType = "webpage";
 			typeID = Zotero.ItemTypes.getID(item.itemType);
 		}
@@ -1099,9 +1155,14 @@ Zotero.Utilities = {
 			} else if(field === "creators") {
 				// normalize creators
 				var n = val.length;
-				var newCreators = newItem.creators = new Array(n);
+				var newCreators = newItem.creators = [];
 				for(var j=0; j<n; j++) {
 					var creator = val[j];
+					
+					if(!creator.firstName && !creator.lastName) {
+						Zotero.debug("itemToServerJSON: Silently dropping empty creator");
+						continue;
+					}
 					
 					// Single-field mode
 					if (!creator.firstName || (creator.fieldMode && creator.fieldMode == 1)) {
@@ -1122,12 +1183,12 @@ Zotero.Utilities = {
 						if(Zotero.CreatorTypes.getID(creator.creatorType)) {
 							newCreator.creatorType = creator.creatorType;
 						} else {
-							Zotero.debug("Translate: Invalid creator type "+creator.creatorType+"; falling back to author");
+							Zotero.debug("itemToServerJSON: Invalid creator type "+creator.creatorType+"; falling back to author");
 						}
 					}
 					if(!newCreator.creatorType) newCreator.creatorType = "author";
 					
-					newCreators[j] = newCreator;
+					newCreators.push(newCreator);
 				}
 			} else if(field === "tags") {
 				// normalize tags
@@ -1141,9 +1202,11 @@ Zotero.Utilities = {
 						} else if(tag.name) {
 							tag = tag.name;
 						} else {
-							Zotero.debug("Translate: Discarded invalid tag");
+							Zotero.debug("itemToServerJSON: Discarded invalid tag");
 							continue;
 						}
+					} else if(tag === "") {
+						continue;
 					}
 					newTags[j] = {"tag":tag.toString(), "type":1};
 				}
@@ -1155,7 +1218,7 @@ Zotero.Utilities = {
 					var note = val[j];
 					if(typeof note === "object") {
 						if(!note.note) {
-							Zotero.debug("Translate: Discarded invalid note");
+							Zotero.debug("itemToServerJSON: Discarded invalid note");
 							continue;
 						}
 						note = note.note;
@@ -1182,10 +1245,10 @@ Zotero.Utilities = {
 				if(Zotero.ItemFields.isValidForType(fieldID, typeID)) {
 					newItem[field] = val;
 				} else {
-					Zotero.debug("Translate: Discarded field "+field+": field not valid for type "+item.itemType, 3);
+					Zotero.debug("itemToServerJSON: Discarded field "+field+": field not valid for type "+item.itemType, 3);
 				}
 			} else {
-				Zotero.debug("Translate: Discarded unknown field "+field, 3);
+				Zotero.debug("itemToServerJSON: Discarded unknown field "+field, 3);
 			}
 		}
 		
@@ -1411,5 +1474,81 @@ Zotero.Utilities = {
 				}
 			}
 		}
+	},
+	
+	/**
+	 * Get the real target URL from an intermediate URL
+	 */
+	"resolveIntermediateURL":function(url) {
+		var patterns = [
+			// Google search results
+			{
+				regexp: /^https?:\/\/(www.)?google\.(com|(com?\.)?[a-z]{2})\/url\?/,
+				variable: "url"
+			}
+		];
+		
+		for (var i=0, len=patterns.length; i<len; i++) {
+			if (!url.match(patterns[i].regexp)) {
+				continue;
+			}
+			var matches = url.match(new RegExp("&" + patterns[i].variable + "=(.+?)(&|$)"));
+			if (!matches) {
+				continue;
+			}
+			return decodeURIComponent(matches[1]);
+		}
+		
+		return url;
+	},
+	
+	/**
+	 * Adds a string to a given array at a given offset, converted to UTF-8
+	 * @param {String} string The string to convert to UTF-8
+	 * @param {Array|Uint8Array} array The array to which to add the string
+	 * @param {Integer} [offset] Offset at which to add the string
+	 */
+	"stringToUTF8Array":function(string, array, offset) {
+		if(!offset) offset = 0;
+		var n = string.length;
+		for(var i=0; i<n; i++) {
+			var val = string.charCodeAt(i);
+			if(val >= 128) {
+				if(val >= 2048) {
+					array[offset] = (val >>> 12) | 224;
+					array[offset+1] = ((val >>> 6) & 63) | 128;
+					array[offset+2] = (val & 63) | 128;
+					offset += 3;
+				} else {
+					array[offset] = ((val >>> 6) | 192);
+					array[offset+1] = (val & 63) | 128;
+					offset += 2;
+				}
+			} else {
+				array[offset++] = val;
+			}
+		}
+	},
+	
+	/**
+	 * Gets the byte length of the UTF-8 representation of a given string
+	 * @param {String} string
+	 * @return {Integer}
+	 */
+	"getStringByteLength":function(string) {
+		var length = 0, n = string.length;
+		for(var i=0; i<n; i++) {
+			var val = string.charCodeAt(i);
+			if(val >= 128) {
+				if(val >= 2048) {
+					length += 3;
+				} else {
+					length += 2;
+				}
+			} else {
+				length += 1;
+			}
+		}
+		return length;
 	}
 }

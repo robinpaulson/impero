@@ -24,11 +24,19 @@
 */
 
 var Zotero_QuickFormat = new function () {
-	var initialized, io, qfs, qfi, qfiWindow, qfiDocument, qfe, qfb, qfbHeight, keepSorted, 
-		showEditor, referencePanel, referenceBox, referenceHeight = 0, separatorHeight = 0, 
-		currentLocator, currentLocatorLabel, currentSearchTime, dragging, panel, 
-		panelPrefix, panelSuffix, panelSuppressAuthor, panelLocatorLabel, panelLocator, panelInfo,
-		panelRefersToBubble;
+	const pixelRe = /^([0-9]+)px$/
+	const specifiedLocatorRe = /^(?:,? *(p{0,2})(?:\. *| +)|:)([0-9\-]+) *$/;
+	const yearRe = /,? *([0-9]+) *(B[. ]*C[. ]*(?:E[. ]*)?|A[. ]*D[. ]*|C[. ]*E[. ]*)?$/i;
+	const locatorRe = /(?:,? *(p{0,2})\.?|(\:)) *([0-9\-–]+)$/i;
+	const creatorSplitRe = /(?:,| *(?:and|\&)) +/;
+	const charRe = /[\w\u007F-\uFFFF]/;
+	const numRe = /^[0-9\-–]+$/;
+	
+	var initialized, io, qfs, qfi, qfiWindow, qfiDocument, qfe, qfb, qfbHeight, qfGuidance,
+		keepSorted,  showEditor, referencePanel, referenceBox, referenceHeight = 0,
+		separatorHeight = 0, currentLocator, currentLocatorLabel, currentSearchTime, dragging,
+		panel, panelPrefix, panelSuffix, panelSuppressAuthor, panelLocatorLabel, panelLocator,
+		panelInfo, panelRefersToBubble, panelFrameHeight = 0, accepted = false;
 	
 	// A variable that contains the timeout object for the latest onKeyPress event
 	var eventTimeout = null;
@@ -47,6 +55,14 @@ var Zotero_QuickFormat = new function () {
 			if(Zotero.isMac || Zotero.isWin) {
 				document.documentElement.setAttribute("hidechrome", true);
 			}
+			
+			// Include a different key combo in message on Mac
+			if(Zotero.isMac) {
+				var qf = document.getElementById('quick-format-guidance');
+				qf.setAttribute('about', qf.getAttribute('about') + "Mac");
+			}
+			
+			new WindowDraggingElement(document.getElementById("quick-format-dialog"), window);
 			
 			qfs = document.getElementById("quick-format-search");
 			qfi = document.getElementById("quick-format-iframe");
@@ -94,6 +110,11 @@ var Zotero_QuickFormat = new function () {
 			panelLocatorLabel = document.getElementById("locator-label");
 			panelLocator = document.getElementById("locator");
 			panelInfo = document.getElementById("citation-properties-info");
+			
+			// Don't need to set noautohide dynamically on these platforms, so do it now
+			if(Zotero.isMac || Zotero.isWin) {
+				referencePanel.setAttribute("noautohide", true);
+			}
 		} else if(event.target === qfi.contentDocument) {			
 			qfiWindow = qfi.contentWindow;
 			qfiDocument = qfi.contentDocument;
@@ -106,9 +127,10 @@ var Zotero_QuickFormat = new function () {
 	 * Initialize add citation dialog
 	 */
 	this.onLoad = function(event) {
-		if(event.target !== document) return;
+		if(event.target !== document) return;		
 		// make sure we are visible
-		window.setTimeout(function() {
+		window.setTimeout(function() {	
+			if(!Zotero.isFx4) window.sizeToContent();
 			var screenX = window.screenX;
 			var screenY = window.screenY;
 			var xRange = [window.screen.availLeft, window.screen.width-window.outerWidth];
@@ -119,6 +141,9 @@ var Zotero_QuickFormat = new function () {
 				Zotero.debug("Moving window to "+targetX+", "+targetY);
 				window.moveTo(targetX, targetY);
 			}
+			qfGuidance = document.getElementById('quick-format-guidance');
+			qfGuidance.show();
+			_refocusQfe();
 		}, 0);
 		
 		window.focus();
@@ -142,9 +167,9 @@ var Zotero_QuickFormat = new function () {
 	};
 	
 	function _refocusQfe() {
+		referencePanel.blur();
 		window.focus();
 		qfe.focus();
-		referencePanel.blur();
 	}
 	
 	/**
@@ -178,11 +203,6 @@ var Zotero_QuickFormat = new function () {
 		var str = _getEditorContent();
 		var haveConditions = false;
 		
-		const specifiedLocatorRe = /^(?:,? *(pp|p)(?:\. *| +)|:)([0-9\-]+) *$/;
-		const yearPageLocatorRe = /,? *([0-9]+) *((B[. ]*C[. ]*|B[. ]*)|[AC][. ]*|A[. ]*D[. ]*|C[. ]*E[. ]*)?,? *(?:([0-9\-]+))?$/i;
-		const creatorSplitRe = /(?:,| *(?:and|\&)) +/;
-		const charRe = /[\w\u007F-\uFFFF]/;
-		const numRe = /^[0-9\-]+$/;
 		const etAl = " et al.";
 		
 		var m,
@@ -230,20 +250,11 @@ var Zotero_QuickFormat = new function () {
 			}
 			
 			// check for year and pages
-			m = yearPageLocatorRe.exec(str);
+			str = _updateLocator(str);
+			m = yearRe.exec(str);
 			if(m) {
-				if(m[1].length === 4 || m[2] || m[4]) {
-					year = parseInt(m[1]);
-					if(m[3]) {
-						isBC = true;
-					}
-					if(!currentLocator && m[4]) {
-						currentLocator = m[4];
-					}
-				} else {
-					currentLocator = m[1];
-				}
-				
+				year = parseInt(m[1]);
+				isBC = m[2] && m[2][0] === "B";
 				str = str.substr(0, m.index)+str.substring(m.index+m[0].length);
 			}
 			if(year) str += " "+year;
@@ -317,6 +328,20 @@ var Zotero_QuickFormat = new function () {
 			// No search conditions, so just clear the box
 			_updateItemList([], []);
 		}
+	}
+	
+	/**
+	 * Updates currentLocator based on a string
+	 * @param {String} str String to search for locator
+	 * @return {String} str without locator
+	 */
+	function _updateLocator(str) {
+		m = locatorRe.exec(str);
+		if(m && (m[1] || m[2] || m[3].length !== 4)) {
+			currentLocator = m[3];
+			str = str.substr(0, m.index)+str.substring(m.index+m[0].length);
+		}
+		return str;
 	}
 	
 	/**
@@ -652,6 +677,8 @@ var Zotero_QuickFormat = new function () {
 			citationItem.uris = item.cslURIs;
 			citationItem.itemData = item.cslItemData;
 		}
+		
+		_updateLocator(_getEditorContent());
 		if(currentLocator) {
 			 citationItem["locator"] = currentLocator;
 			if(currentLocatorLabel) {
@@ -687,10 +714,13 @@ var Zotero_QuickFormat = new function () {
 		for(var i=0, n=childNodes.length; i<n && numReferences < SHOWN_REFERENCES; i++) {
 			if(childNodes[i].className === "quick-format-item") {
 				numReferences++;
-				firstReference = childNodes[i];
+				if(!firstReference) {
+					firstReference = childNodes[i];
+					if(referenceBox.selectedIndex === -1) referenceBox.selectedIndex = i;
+				}
 			} else if(childNodes[i].className === "quick-format-separator") {
 				numSeparators++;
-				firstSeparator = childNodes[i];
+				if(!firstSeparator) firstSeparator = childNodes[i];
 			}
 		}
 		
@@ -711,29 +741,72 @@ var Zotero_QuickFormat = new function () {
 		var panelShowing = referencePanel.state === "open" || referencePanel.state === "showing";
 		
 		if(numReferences || numSeparators) {
+			if(((!referenceHeight && firstReference) || (!separatorHeight && firstSeparator)
+					|| !panelFrameHeight) && !panelShowing) {
+				_openReferencePanel();
+				if(!Zotero.isFx4) {
+					referencePanel.addEventListener("popupshown", function() {
+						referencePanel.removeEventListener("popupshown", arguments.callee, false); 
+						panelShowing = true;
+						_resize();
+					}, false);
+					return;
+				} else {
+					panelShowing = true;
+				}
+			}
+		
 			if(!referenceHeight && firstReference) {
-				if(!panelShowing) referencePanel.openPopup(document.documentElement, "after_start", 15,
-					null, false, false, null);
-				panelShowing = true;
 				referenceHeight = firstReference.scrollHeight;
 				if(firstReference === referenceBox.lastChild) referenceHeight += 1;
 			}
 			
 			if(!separatorHeight && firstSeparator) {
-				if(!panelShowing) referencePanel.openPopup(document.documentElement, "after_start", 15,
-					null, false, false, null);
-				panelShowing = true;
 				separatorHeight = firstSeparator.scrollHeight;
 				if(firstSeparator === referenceBox.lastChild) separatorHeight += 1;
 			}
 			
+			if(!panelFrameHeight) {
+				panelFrameHeight = referencePanel.boxObject.height - referencePanel.clientHeight;
+				var computedStyle = window.getComputedStyle(referenceBox, null);
+				for each(var attr in ["border-top-width", "border-bottom-width"]) {
+					var val = computedStyle.getPropertyValue(attr);
+					if(val) {
+						var m = pixelRe.exec(val);
+						if(m) panelFrameHeight += parseInt(m[1], 10);
+					}
+				}
+			}
+			
 			referencePanel.sizeTo(window.outerWidth-30,
-				numReferences*referenceHeight+1+numSeparators*separatorHeight-1);
-			if(!panelShowing) referencePanel.openPopup(document.documentElement, "after_start", 15,
-				null, false, false, null);
+				numReferences*referenceHeight+numSeparators*separatorHeight+panelFrameHeight);
+			if(!panelShowing) _openReferencePanel();
 		} else if(panelShowing) {
 			referencePanel.hidePopup();
 			referencePanel.sizeTo(window.outerWidth-30, 0);
+			_refocusQfe();
+		}
+	}
+	
+	/**
+	 * Opens the reference panel and potentially refocuses the main text box
+	 */
+	function _openReferencePanel() {
+		if(!Zotero.isMac && !Zotero.isWin) {
+			// noautohide and noautofocus are incompatible on Linux
+			// https://bugzilla.mozilla.org/show_bug.cgi?id=545265
+			referencePanel.setAttribute("noautohide", "false");
+		}
+		
+		referencePanel.openPopup(document.documentElement, "after_start", 15,
+			null, false, false, null);
+		
+		if(!Zotero.isMac && !Zotero.isWin) {
+			// reinstate noautohide after the window is shown
+			referencePanel.addEventListener("popupshowing", function() {
+				referencePanel.removeEventListener("popupshowing", arguments.callee, false);
+				referencePanel.setAttribute("noautohide", "true");
+			}, false);
 		}
 	}
 	
@@ -868,9 +941,25 @@ var Zotero_QuickFormat = new function () {
 	 * Accepts current selection and adds citation
 	 */
 	function _accept() {
-		_updateCitationObject();
-		document.getElementById("quick-format-deck").selectedIndex = 1;
-		io.accept(_onProgress);
+		if(accepted) return;
+		accepted = true;
+		try {
+			_updateCitationObject();
+			document.getElementById("quick-format-deck").selectedIndex = 1;
+			io.accept(_onProgress);
+		} catch(e) {
+			Zotero.debug(e);
+		}
+	}
+	
+	/**
+	 * Handles windows closed with the close box
+	 */
+	this.onUnload = function() {
+		if(accepted) return;
+		accepted = true;
+		io.citation.citationItems = [];
+		io.accept();
 	}
 	
 	/**
@@ -878,7 +967,8 @@ var Zotero_QuickFormat = new function () {
 	 */
 	this.onKeyPress = function(event) {
 		var keyCode = event.keyCode;
-		if(keyCode === event.DOM_VK_ESCAPE) {
+		if(keyCode === event.DOM_VK_ESCAPE && !accepted) {
+			accepted = true;
 			io.citation.citationItems = [];
 			io.accept();
 		}
@@ -888,6 +978,8 @@ var Zotero_QuickFormat = new function () {
 	 * Handle return or escape
 	 */
 	function _onQuickSearchKeyPress(event) {
+		if(qfGuidance) qfGuidance.hide();
+		
 		var keyCode = event.keyCode;
 		if(keyCode === event.DOM_VK_RETURN || keyCode === event.DOM_VK_ENTER) {
 			event.preventDefault();
@@ -1090,7 +1182,11 @@ var Zotero_QuickFormat = new function () {
 			.getService(Components.interfaces.nsIWindowWatcher)
 			.openWindow(null, 'chrome://zotero/content/integration/addCitationDialog.xul',
 			'', 'chrome,centerscreen,resizable', io);
-		newWindow.addEventListener("load", function() { window.close(); }, false);
+		newWindow.addEventListener("focus", function() {
+			newWindow.removeEventListener("focus", arguments.callee, true);
+			window.close();
+		}, true);
+		accepted = true;
 	}
 	
 	/**

@@ -202,7 +202,8 @@ Zotero.LocateManager = new function() {
 			"image/png":"png",
 			"image/jpeg":"jpg",
 			"image/gif":"gif",
-			"image/x-icon":"ico"
+			"image/x-icon":"ico",
+			"image/vnd.microsoft.icon":"ico"
 		};
 		
 		// ensure there is an icon
@@ -518,7 +519,7 @@ Zotero.LocateManager = new function() {
 				false)
 			  return this;
 			
-			throw Cr.NS_ERROR_NO_INTERFACE;
+			throw Components.results.NS_ERROR_NO_INTERFACE;
 		},
 		
 		// nsIRequestObserver

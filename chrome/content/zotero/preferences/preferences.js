@@ -30,14 +30,60 @@ var _io = {};
 
 
 var Zotero_Preferences = {
-
 	onUnload: function () {
 		Zotero_Preferences.Debug_Output.onUnload();
+	},
+	
+	openHelpLink: function () {
+		var url = "http://www.zotero.org/support/preferences/";
+		var helpTopic = document.getElementsByTagName("prefwindow")[0].currentPane.helpTopic;
+		url += helpTopic;
+		
+		// Non-instantApply prefwindows are usually modal, so we can't open in the topmost window,
+		// since it's probably behind the window
+		var instantApply = Zotero.Prefs.get("browser.preferences.instantApply", true);
+		
+		if (instantApply) {
+			window.opener.ZoteroPane_Local.loadURI(url, { shiftKey: true, metaKey: true });
+		}
+		else {
+			if (Zotero.isStandalone) {
+				var io = Components.classes['@mozilla.org/network/io-service;1']
+							.getService(Components.interfaces.nsIIOService);
+				var uri = io.newURI(url, null, null);
+				var handler = Components.classes['@mozilla.org/uriloader/external-protocol-service;1']
+							.getService(Components.interfaces.nsIExternalProtocolService)
+							.getProtocolHandlerInfo('http');
+				handler.preferredAction = Components.interfaces.nsIHandlerInfo.useSystemDefault;
+				handler.launchWithURI(uri, null);
+			}
+			else {
+				var ww = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
+							.getService(Components.interfaces.nsIWindowWatcher);
+				var win = ww.openWindow(
+					window,
+					url,
+					"helpWindow",
+					"chrome=no,menubar=yes,location=yes,toolbar=yes,personalbar=yes,resizable=yes,scrollbars=yes,status=yes",
+					null
+				);
+			}
+		}
 	}
 }
 
 function init()
 {
+	if(Zotero.isConnector) {
+		Zotero.activateStandalone();
+		window.close();
+		return;
+	}
+	
+	observerService.addObserver(function() {
+		if(Zotero.isConnector) window.close();
+	}, "zotero-reloaded", false);
+	
 	// Display the appropriate modifier keys for the platform
 	var rows = document.getElementById('zotero-prefpane-keys').getElementsByTagName('row');
 	for (var i=0; i<rows.length; i++) {
@@ -542,7 +588,9 @@ function populateQuickCopyList() {
 	menulist.setAttribute('preference', "pref-quickCopy-setting");
 	updateQuickCopyHTMLCheckbox();
 	
-	refreshQuickCopySiteList();
+	if (!Zotero.isStandalone) {
+		refreshQuickCopySiteList();
+	}
 }
 
 
@@ -714,11 +762,18 @@ function deleteSelectedQuickCopySite() {
 
 function updateQuickCopyInstructions() {
 	var prefix = Zotero.isMac ? 'Cmd+Shift+' : 'Ctrl+Alt+';
+	
 	var key = Zotero.Prefs.get('keys.copySelectedItemsToClipboard');
-	
-	var instr = document.getElementById('quickCopy-instructions');
 	var str = Zotero.getString('zotero.preferences.export.quickCopy.instructions', prefix + key);
+	var instr = document.getElementById('quickCopy-instructions');
+	while (instr.hasChildNodes()) {
+		instr.removeChild(instr.firstChild);
+	}
+	instr.appendChild(document.createTextNode(str));
 	
+	var key = Zotero.Prefs.get('keys.copySelectedItemCitationsToClipboard');
+	var str = Zotero.getString('zotero.preferences.export.quickCopy.citationInstructions', prefix + key);
+	var instr = document.getElementById('quickCopy-citationInstructions');
 	while (instr.hasChildNodes()) {
 		instr.removeChild(instr.firstChild);
 	}
@@ -1179,12 +1234,9 @@ function revealDataDirectory() {
 		dataDir.reveal();
 	}
 	catch (e) {
-		// On platforms that don't support nsILocalFile.reveal() (e.g. Linux), we
-		// open a small window with a selected read-only textbox containing the
-		// file path, so the user can open it, Control-c, Control-w, Alt-Tab, and
-		// Control-v the path into another app
-		var io = {alertText: dataDir.path};
-		window.openDialog('chrome://zotero/content/selectableAlert.xul', "zotero-reveal-window", "chrome", io);
+		// On platforms that don't support nsILocalFile.reveal() (e.g. Linux),
+		// launch the directory
+		window.opener.ZoteroPane_Local.launchFile(dataDir);
 	}
 }
 
@@ -1196,6 +1248,55 @@ function runIntegrityCheck() {
 	var ok = Zotero.DB.integrityCheck();
 	if (ok) {
 		ok = Zotero.Schema.integrityCheck();
+		if (!ok) {
+			var buttonFlags = (ps.BUTTON_POS_0) * (ps.BUTTON_TITLE_IS_STRING)
+				+ (ps.BUTTON_POS_1) * (ps.BUTTON_TITLE_CANCEL);
+			var index = ps.confirmEx(window,
+				Zotero.getString('general.failed'),
+				Zotero.getString('db.integrityCheck.failed') + "\n\n" +
+					Zotero.getString('db.integrityCheck.repairAttempt') + " " +
+					Zotero.getString('db.integrityCheck.appRestartNeeded', Zotero.appName),
+				buttonFlags,
+				Zotero.getString('db.integrityCheck.fixAndRestart', Zotero.appName),
+				null, null, null, {}
+			);
+			
+			if (index == 0) {
+				// Safety first
+				Zotero.DB.backupDatabase();
+				
+				// Fix the errors
+				Zotero.Schema.integrityCheck(true);
+				
+				// And run the check again
+				ok = Zotero.Schema.integrityCheck();
+				var buttonFlags = (ps.BUTTON_POS_0) * (ps.BUTTON_TITLE_IS_STRING);
+				if (ok) {
+					var str = 'success';
+					var msg = Zotero.getString('db.integrityCheck.errorsFixed');
+				}
+				else {
+					var str = 'failed';
+					var msg = Zotero.getString('db.integrityCheck.errorsNotFixed')
+								+ "\n\n" + Zotero.getString('db.integrityCheck.reportInForums');
+				}
+				
+				ps.confirmEx(window,
+					Zotero.getString('general.' + str),
+					msg,
+					buttonFlags,
+					Zotero.getString('general.restartApp', Zotero.appName),
+					null, null, null, {}
+				);
+				
+				var appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
+						.getService(Components.interfaces.nsIAppStartup);
+				appStartup.quit(Components.interfaces.nsIAppStartup.eAttemptQuit
+					| Components.interfaces.nsIAppStartup.eRestart);
+			}
+			
+			return;
+		}
 	}
 	var str = ok ? 'passed' : 'failed';
 	
@@ -1810,7 +1911,7 @@ function handleShowInPreferenceChange() {
 /**
  * Opens a URI in the basic viewer in Standalone, or a new window in Firefox
  */
-function openInViewer(uri) {
+function openInViewer(uri, newTab) {
 	var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
 		.getService(Components.interfaces.nsIWindowMediator);
 	const features = "menubar=yes,toolbar=no,location=no,scrollbars,centerscreen,resizable";
@@ -1826,7 +1927,11 @@ function openInViewer(uri) {
 	} else {
 		var win = wm.getMostRecentWindow("navigator:browser");
 		if(win) {
-			win.open(uri, null, features);
+			if(newTab) {
+				win.gBrowser.selectedTab = win.gBrowser.addTab(uri);
+			} else {
+				win.open(uri, null, features);
+			}
 		}
 		else {
 			var ww = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]

@@ -2484,7 +2484,8 @@ Zotero.Item.prototype.getNotes = function(includeTrashed) {
 	
 	if (Zotero.Prefs.get('sortNotesChronologically')) {
 		sql += " ORDER BY dateAdded";
-		return Zotero.DB.columnQuery(sql, this.id);
+		var results = Zotero.DB.columnQuery(sql, this.id);
+		return results ? results : [];
 	}
 	
 	var notes = Zotero.DB.query(sql, this.id);
@@ -2741,15 +2742,21 @@ Zotero.Item.prototype.renameAttachmentFile = function(newName, overwrite) {
 		// Ignore if no change
 		//
 		// Note: Just comparing file.leafName to newName isn't reliable
-		if (file.leafName == dest.leafName) {
+		if (file.leafName === dest.leafName) {
 			return true;
 		}
 		
-		if (overwrite) {
-			dest.remove(false);
-		}
-		else if (dest.exists()) {
-			return -1;
+		// If old and new names differ only in case, let's bank on this
+		// just being a case change and not bother checking for existing
+		// files, since dest.exists() will just show true on a case-insensitive
+		// filesystem anyway.
+		if (file.leafName.toLowerCase() != dest.leafName.toLowerCase()) {
+			if (overwrite) {
+				dest.remove(false);
+			}
+			else if (dest.exists()) {
+				return -1;
+			}
 		}
 		
 		file.moveTo(null, newName);
@@ -3285,7 +3292,8 @@ Zotero.Item.prototype.getAttachments = function(includeTrashed) {
 		
 	if (Zotero.Prefs.get('sortAttachmentsChronologically')) {
 		sql +=  " ORDER BY dateAdded";
-		return Zotero.DB.columnQuery(sql, this.id);
+		var results = Zotero.DB.columnQuery(sql, this.id);
+		return results ? results : [];
 	}
 	
 	var attachments = Zotero.DB.query(sql, this.id);
@@ -3747,9 +3755,9 @@ Zotero.Item.prototype.diff = function (item, includeMatches, ignoreFields) {
 			var thisNote = thisData.note;
 			var otherNote = otherData.note;
 			
-			// Stop Windows newlines from triggering erroneous conflicts
-			thisNote = thisNote.replace(/\r\n/g, "\n");
-			otherNote = otherNote.replace(/\r\n/g, "\n");
+			// Stop non-Unix newlines from triggering erroneous conflicts
+			thisNote = thisNote.replace(/\r\n?/g, "\n");
+			otherNote = otherNote.replace(/\r\n?/g, "\n");
 			
 			// Normalize multiple spaces (due to differences TinyMCE, Z.U.text2html(),
 			// and the server)
@@ -4190,7 +4198,7 @@ Zotero.Item.prototype.erase = function() {
 	catch (e) {
 		// If deletion fails, try to correct a few things that have come up before
 		Zotero.debug("Item deletion failed -- trying to fix", 2);
-		Zotero.DB.query('DELETE FROM fulltextItemWords WHERE itemID=?', this.id);
+		Zotero.Fulltext.clearItemWords(this.id);
 		Zotero.DB.query('DELETE FROM itemTags WHERE itemID=?', this.id);
 		
 		// And then try again

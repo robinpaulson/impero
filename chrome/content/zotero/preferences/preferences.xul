@@ -42,11 +42,13 @@ To add a new preference:
 
 -->
 <prefwindow id="zotero-prefs" title="&zotero.preferences.title;" onload="init()" onunload="Zotero_Preferences.onUnload()"
-		windowtype="zotero:pref" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+		windowtype="zotero:pref" ondialoghelp="Zotero_Preferences.openHelpLink()"
+		xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 	
 	<prefpane id="zotero-prefpane-general"
 						label="&zotero.preferences.prefpane.general;"
-						image="chrome://zotero/skin/prefs-general.png">
+						image="chrome://zotero/skin/prefs-general.png"
+						helpTopic="general">
 		<preferences id="zotero-prefpane-general-preferences">
 			<preference id="pref-fontSize" name="extensions.zotero.fontSize" type="string"/>
 			<preference id="pref-noteFontSize" name="extensions.zotero.note.fontSize" type="string"/>
@@ -156,7 +158,8 @@ To add a new preference:
 	<prefpane id="zotero-prefpane-sync"
 						label="&zotero.preferences.prefpane.sync;"
 						onpaneload="document.getElementById('sync-password').value = Zotero.Sync.Server.password; document.getElementById('storage-password').value = Zotero.Sync.Storage.password;"
-						image="chrome://zotero/skin/prefs-sync.png">
+						image="chrome://zotero/skin/prefs-sync.png"
+						helpTopic="sync">
 		<preferences>
 			<preference id="pref-sync-autosync" name="extensions.zotero.sync.autoSync" type="bool"/>
 			<preference id="pref-sync-username" name="extensions.zotero.sync.server.username" type="string" instantApply="true"/>
@@ -426,7 +429,8 @@ To add a new preference:
 	<prefpane id="zotero-prefpane-search"
 						label="&zotero.preferences.prefpane.search;"
 						onpaneload="updateIndexStats()"
-						image="chrome://zotero/skin/prefs-search.png">
+						image="chrome://zotero/skin/prefs-search.png"
+						helpTopic="search">
 		<preferences>
 			<preference id="pref-fulltext-textMaxLength" name="extensions.zotero.fulltext.textMaxLength" type="int"/>
 			<preference id="pref-fulltext-pdfmaxpages" name="extensions.zotero.fulltext.pdfMaxPages" type="int"/>
@@ -515,45 +519,31 @@ To add a new preference:
 	
 	<prefpane id="zotero-prefpane-export"
 						label="&zotero.preferences.prefpane.export;"
-						image="chrome://zotero/skin/prefs-export.png">
+						image="chrome://zotero/skin/prefs-export.png"
+						helpTopic="export">
 		<preferences>
 			<preference id="pref-quickCopy-setting" name="extensions.zotero.export.quickCopy.setting" type="string"/>
 			<preference id="pref-quickCopy-dragLimit" name="extensions.zotero.export.quickCopy.dragLimit" type="int"/>
 		</preferences>
 		
-		<groupbox>
+		<groupbox id="zotero-prefpane-export-groupbox">
 			<caption label="&zotero.preferences.quickCopy.caption;"/>
 			
 			<label id="quickCopy-instructions"/>
+			<separator class="thin"/>
+			<label id="quickCopy-citationInstructions"/>
 			
 			<separator/>
 			
 			<label value="&zotero.preferences.quickCopy.defaultOutputFormat;" control="quickCopy-menu"/>
 			<menulist id="zotero-quickCopy-menu"/>
 			
-			<separator/>
+			<separator class="thin"/>
 			
 			<checkbox id="zotero-quickCopy-copyAsHTML" label="&zotero.preferences.quickCopy.copyAsHTML;"
 				oncommand="buildQuickCopyFormatDropDown(document.getElementById('zotero-quickCopy-menu'), this.checked ? 'html' : '');"/>
 			
-			<separator/>
-			
-			<label value="&zotero.preferences.quickCopy.siteEditor.setings;" control="quickCopy-siteSettings"/>
-			<tree flex="1" id="quickCopy-siteSettings" hidecolumnpicker="true" rows="6" seltype="single"
-					ondblclick="showQuickCopySiteEditor(this.currentIndex)"
-					onkeypress="if (event.keyCode == event.DOM_VK_DELETE) { deleteSelectedQuickCopySite(); }">
-				<treecols>
-					<treecol id="quickCopy-urlColumn" label="&zotero.preferences.quickCopy.siteEditor.domainPath;" flex="1"/>
-					<treecol id="quickCopy-formatColumn" label="&zotero.preferences.quickCopy.siteEditor.outputFormat;" flex="2"/>
-					<treecol id="quickCopy-copyAsHTML" label="HTML"/>
-				</treecols>
-				<treechildren id="quickCopy-siteSettings-rows"/>
-			</tree>
-			<separator class="thin"/>
-			<hbox pack="end">
-				<button label="-" onclick="deleteSelectedQuickCopySite()"/>
-				<button label="+" onclick="showQuickCopySiteEditor()"/>
-			</hbox>
+			<vbox id="zotero-prefpane-export-siteSettings"/>
 			
 			<hbox align="center">
 				<label value="&zotero.preferences.quickCopy.dragLimit;"/>
@@ -580,7 +570,8 @@ To add a new preference:
 	
 	<prefpane id="zotero-prefpane-cite"
 						label="&zotero.preferences.prefpane.cite;"
-						image="chrome://zotero/skin/prefs-styles.png">
+						image="chrome://zotero/skin/prefs-styles.png"
+						helpTopic="cite">
 		
 		<preferences id="zotero-preferences-cite">
 			<preference id="pref-cite-citePaperJournalArticleURL" name="extensions.zotero.export.citePaperJournalArticleURL" type="bool"/>
@@ -639,7 +630,8 @@ To add a new preference:
 	
 	<prefpane id="zotero-prefpane-keys"
 						label="&zotero.preferences.prefpane.keys;"
-						image="chrome://zotero/skin/prefs-keys.png">
+						image="chrome://zotero/skin/prefs-keys.png"
+						helpTopic="shortcut_keys">
 		<preferences>
 			<preference id="pref-keys-openZotero" name="extensions.zotero.keys.openZotero" type="string"/>
 			<preference id="pref-keys-toggleFullscreen" name="extensions.zotero.keys.toggleFullscreen" type="string"/>
@@ -734,7 +726,8 @@ To add a new preference:
 	
 	<prefpane id="zotero-prefpane-advanced"
 						label="&zotero.preferences.prefpane.advanced;"
-						image="chrome://zotero/skin/prefs-advanced.png">
+						image="chrome://zotero/skin/prefs-advanced.png"
+						helpTopic="advanced">
 		<preferences>
 			<preference id="pref-useDataDir" name="extensions.zotero.useDataDir" type="bool"/>
 			<preference id="pref-dataDir" name="extensions.zotero.dataDir" type="string"/>
@@ -830,9 +823,9 @@ To add a new preference:
 		<groupbox>
 			<caption label="&zotero.preferences.miscellaneous;"/>
 			<hbox align="center">
-				<button id="openAboutConfig" label="&zotero.preferences.openAboutConfig;" oncommand="openInViewer('about:config', '')"/>
-				<button id="openCSLEdit" label="&zotero.preferences.openCSLEdit;" oncommand="openInViewer('chrome://zotero/content/tools/csledit.xul', '')"/>
-				<button id="openCSLPreview" label="&zotero.preferences.openCSLPreview;" oncommand="openInViewer('chrome://zotero/content/tools/cslpreview.xul', '')"/>
+				<button id="openAboutConfig" label="&zotero.preferences.openAboutConfig;" oncommand="openInViewer('about:config')"/>
+				<button id="openCSLEdit" label="&zotero.preferences.openCSLEdit;" oncommand="openInViewer('chrome://zotero/content/tools/csledit.xul', true)"/>
+				<button id="openCSLPreview" label="&zotero.preferences.openCSLPreview;" oncommand="openInViewer('chrome://zotero/content/tools/cslpreview.xul', true)"/>
 			</hbox>
 		</groupbox>
 		

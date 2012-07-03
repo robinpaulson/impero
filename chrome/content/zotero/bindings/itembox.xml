@@ -497,9 +497,8 @@
 						moveDown.id = "zotero-creator-move-down";
 						moveUp.className = "zotero-creator-move";
 						moveDown.className = "zotero-creator-move";
-						// TODO: localize
-						moveUp.setAttribute("label", "Move Up");
-						moveDown.setAttribute("label", "Move Down");
+						moveUp.setAttribute("label", Zotero.getString('pane.item.creator.moveUp'));
+						moveDown.setAttribute("label", Zotero.getString('pane.item.creator.moveDown'));
 						this._creatorTypeMenu.appendChild(moveSep);
 						this._creatorTypeMenu.appendChild(moveUp);
 						this._creatorTypeMenu.appendChild(moveDown);
@@ -817,8 +816,7 @@
 					
 					var label = document.createElement('label');
 					label.id = 'more-creators-label';
-					// TODO: localize
-					label.setAttribute('value', num + " more…");
+					label.setAttribute('value', Zotero.getString('general.numMore', num));
 					label.setAttribute('onclick',
 						"var binding = document.getBindingParent(this); "
 						+ "binding._displayAllCreators = true; "
@@ -2345,7 +2343,19 @@
 					}
 					
 					next[0].click();
-					this.ensureElementIsVisible(next[0]);
+					
+					// DEBUG: next[0] is always equal to the target element,
+					// but for some reason it's necessary to scroll to the next
+					// element when moving forward for the target element to
+					// be fully in view
+					if (!back && next[0].parentNode.nextSibling) {
+						var visElem = next[0].parentNode.nextSibling;
+					}
+					else {
+						var visElem = next[0];
+					}
+					this.ensureElementIsVisible(visElem);
+					
 					return true;
 				]]>
 				</body>

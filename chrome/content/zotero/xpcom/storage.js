@@ -53,8 +53,8 @@ Zotero.Sync.Storage = new function () {
 	
 	// TEMP
 	// TODO: localize
-	this.defaultError = "A file sync error occurred. Please try syncing again.\n\nIf you receive this message repeatedly, restart Firefox and/or your computer and try again. If you continue to receive the message, submit an error report and post the Report ID to a new thread in the Zotero Forums.";
-	this.defaultErrorRestart = "A file sync error occurred. Please restart Firefox and/or your computer and try syncing again.\n\nIf you receive this message repeatedly, submit an error report and post the Report ID to a new thread in the Zotero Forums.";
+	this.__defineGetter__("defaultError", function () "A file sync error occurred. Please try syncing again.\n\nIf you receive this message repeatedly, restart " + Zotero.appName + " and/or your computer and try again. If you continue to receive the message, submit an error report and post the Report ID to a new thread in the Zotero Forums.");
+	this.__defineGetter__("defaultErrorRestart", function () "A file sync error occurred. Please restart " + Zotero.appName + " and/or your computer and try syncing again.\n\nIf you receive this message repeatedly, submit an error report and post the Report ID to a new thread in the Zotero Forums.");
 	
 	//
 	// Public properties
@@ -1111,15 +1111,19 @@ Zotero.Sync.Storage = new function () {
 				Components.utils.reportError(msg + " in " + funcName);
 				continue;
 			}
+			
 			try {
 				destFile.create(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 0644);
 			}
 			catch (e) {
+				Zotero.debug(e, 1);
+				
 				var windowsLength = false;
 				var nameLength = false;
 				
 				// Windows API only allows paths of 260 characters
 				if (e.name == "NS_ERROR_FILE_NOT_FOUND" && destFile.path.length > 255) {
+					Zotero.debug("Path is " + destFile.path);
 					windowsLength = true;
 				}
 				// ext3/ext4/HFS+ have a filename length limit of ~254 bytes
@@ -1127,18 +1131,21 @@ Zotero.Sync.Storage = new function () {
 				// These filenames will almost always be ASCII ad files,
 				// but allow an extra 10 bytes anyway
 				else if (e.name == "NS_ERROR_FAILURE" && destFile.leafName.length >= 244) {
+					Zotero.debug("Filename is " + destFile.leafName);
 					nameLength = true;
 				}
 				// Filesystem encryption (or, more specifically, filename encryption)
 				// can result in a lower limit -- not much we can do about this,
 				// but log a warning and skip the file
 				else if (e.name == "NS_ERROR_FAILURE" && Zotero.isLinux && destFile.leafName.length > 130) {
-					Zotero.debug(e);
 					// TODO: localize
 					var msg = "Error creating file '" + destFile.leafName + "'. "
 						+ "See http://www.zotero.org/support/kb/encrypted_filenames for more information.";
 					Components.utils.reportError(msg);
 					continue;
+				}
+				else {
+					Zotero.debug("Path is " + destFile.path);
 				}
 				
 				if (windowsLength || nameLength) {
@@ -1148,7 +1155,10 @@ Zotero.Sync.Storage = new function () {
 					
 					if (windowsLength) {
 						var pathLength = destFile.path.length - destFile.leafName.length;
-						var newLength = 255 - pathLength;
+						// Limit should be 255, but a shorter limit seems to be
+						// enforced for nsIZipReader.extract() below on
+						// non-English systems
+						var newLength = 240 - pathLength;
 						// Require 40 available characters in path -- this is arbitrary,
 						// but otherwise filenames are going to end up being cut off
 						if (newLength < 40) {
@@ -1160,7 +1170,7 @@ Zotero.Sync.Storage = new function () {
 						}
 					}
 					else {
-						var newLength = 254;
+						var newLength = 240;
 					}
 					
 					// Shorten file if it's too long -- we don't relink it, but this should
@@ -1224,6 +1234,21 @@ Zotero.Sync.Storage = new function () {
 				zipReader.extract(entryName, destFile);
 			}
 			catch (e) {
+				Zotero.debug(destFile.path);
+				
+				// For advertising junk files, ignore a bug on Windows where
+				// destFile.create() works but zipReader.extract() doesn't
+				// when the path length is close to 255.
+				if (destFile.leafName.match(/[a-zA-Z0-9+=]{130,}/)) {
+					var msg = "Ignoring error extracting '" + destFile.path + "'";
+					Zotero.debug(msg, 2);
+					Zotero.debug(e, 2);
+					Components.utils.reportError(msg + " in " + funcName);
+					continue;
+				}
+				
+				zipReader.close();
+				
 				Zotero.File.checkFileAccessError(e, destFile, 'create');
 			}
 			

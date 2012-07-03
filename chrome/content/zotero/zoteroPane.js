@@ -274,8 +274,9 @@ var ZoteroPane = new function()
 		for (var i = 0; i<itemTypes.length; i++) {
 			var menuitem = document.createElement("menuitem");
 			menuitem.setAttribute("label", itemTypes[i].localized);
-			menuitem.setAttribute("oncommand","ZoteroPane_Local.newItem("+itemTypes[i]['id']+")");
 			menuitem.setAttribute("tooltiptext", "");
+			let type = itemTypes[i].id;
+			menuitem.addEventListener("command", function() { ZoteroPane_Local.newItem(type, {}, null, true); }, false);
 			moreMenu.appendChild(menuitem);
 		}
 	}
@@ -311,8 +312,9 @@ var ZoteroPane = new function()
 		for (var i = 0; i<itemTypes.length; i++) {
 			var menuitem = document.createElement("menuitem");
 			menuitem.setAttribute("label", itemTypes[i].localized);
-			menuitem.setAttribute("oncommand","ZoteroPane_Local.newItem("+itemTypes[i]['id']+")");
 			menuitem.setAttribute("tooltiptext", "");
+			let type = itemTypes[i].id;
+			menuitem.addEventListener("command", function() { ZoteroPane_Local.newItem(type, {}, null, true); }, false);
 			menuitem.className = "zotero-tb-add";
 			addMenu.insertBefore(menuitem, separator);
 		}
@@ -401,16 +403,6 @@ var ZoteroPane = new function()
 			searchBar.inputField.select();
 		}, 1);
 		
-		// Auto-empty trashed items older than a certain number of days
-		var days = Zotero.Prefs.get('trashAutoEmptyDays');
-		if (days) {
-			var d = new Date();
-			// TODO: empty group trashes if permissions
-			var deleted = Zotero.Items.emptyTrash(null, days);
-			var d2 = new Date();
-			Zotero.debug("Emptied old items from trash in " + (d2 - d) + " ms");
-		}
-		
 		var d = new Date();
 		Zotero.purgeDataObjects();
 		var d2 = new Date();
@@ -419,9 +411,12 @@ var ZoteroPane = new function()
 		// Auto-sync on pane open
 		if (Zotero.Prefs.get('sync.autoSync')) {
 			setTimeout(function () {
-				if (!Zotero.Sync.Server.enabled
-						|| Zotero.Sync.Server.syncInProgress
-						|| Zotero.Sync.Storage.syncInProgress) {
+				if (!Zotero.Sync.Server.enabled) {
+					Zotero.debug('Sync not enabled -- skipping auto-sync', 4);
+					return;
+				}
+				
+				if (Zotero.Sync.Server.syncInProgress || Zotero.Sync.Storage.syncInProgress) {
 					Zotero.debug('Sync already running -- skipping auto-sync', 4);
 					return;
 				}
@@ -440,9 +435,6 @@ var ZoteroPane = new function()
 		// We don't bother setting an error state at open
 		if (Zotero.Sync.Server.syncInProgress || Zotero.Sync.Storage.syncInProgress) {
 			Zotero.Sync.Runner.setSyncIcon('animate');
-		}
-		else {
-			Zotero.Sync.Runner.setSyncIcon();
 		}
 		
 		return true;
@@ -574,8 +566,23 @@ var ZoteroPane = new function()
 				document.getElementById('zotero-editpane-item-box').itemTypeMenu.menupopup.openPopup(menu, "before_start", 0, 0);
 				break;
 			case 'newNote':
+				// If a regular item is selected, use that as the parent.
+				// If a child item is selected, use its parent as the parent.
+				// Otherwise create a standalone note.
+				var parent = false;
+				var items = ZoteroPane_Local.getSelectedItems();
+				if (items.length == 1) {
+					if (items[0].isRegularItem()) {
+						parent = items[0].id;
+					}
+					else {
+						parent = items[0].getSource();
+					}
+				}
 				// Use key that's not the modifier as the popup toggle
-				ZoteroPane_Local.newNote(useShift ? event.altKey : event.shiftKey);
+				ZoteroPane_Local.newNote(
+					useShift ? event.altKey : event.shiftKey, parent
+				);
 				break;
 			case 'toggleTagSelector':
 				ZoteroPane_Local.toggleTagSelector();
@@ -663,24 +670,24 @@ var ZoteroPane = new function()
 	 *
 	 * _data_ is an optional object with field:value for itemData
 	 */
-	function newItem(typeID, data, row)
+	function newItem(typeID, data, row, manual)
 	{
 		if (!Zotero.stateCheck()) {
 			this.displayErrorMessage(true);
 			return false;
 		}
 		
-		// Make sure currently selected view is editable
-		if (row === undefined && this.collectionsView.selection) {
+		if ((row === undefined || row === null) && this.collectionsView.selection) {
 			row = this.collectionsView.selection.currentIndex;
 			
+			// Make sure currently selected view is editable
 			if (!this.canEdit(row)) {
 				this.displayCannotEditLibraryMessage();
 				return;
 			}
 		}
 		
-		if (row !== undefined) {
+		if (row !== undefined && row !== null) {
 			var itemGroup = this.collectionsView._getItemAtRow(row);
 			var libraryID = itemGroup.ref.libraryID;
 		}
@@ -708,19 +715,21 @@ var ZoteroPane = new function()
 		document.getElementById('zotero-view-item').selectedIndex = 0;
 		
 		// Update most-recently-used list for New Item menu
-		var mru = Zotero.Prefs.get('newItemTypeMRU');
-		if (mru) {
-			var mru = mru.split(',');
-			var pos = mru.indexOf(typeID + '');
-			if (pos != -1) {
-				mru.splice(pos, 1);
+		if (manual) {
+			var mru = Zotero.Prefs.get('newItemTypeMRU');
+			if (mru) {
+				var mru = mru.split(',');
+				var pos = mru.indexOf(typeID + '');
+				if (pos != -1) {
+					mru.splice(pos, 1);
+				}
+				mru.unshift(typeID);
 			}
-			mru.unshift(typeID);
+			else {
+				var mru = [typeID + ''];
+			}
+			Zotero.Prefs.set('newItemTypeMRU', mru.slice(0, 5).join(','));
 		}
-		else {
-			var mru = [typeID + ''];
-		}
-		Zotero.Prefs.set('newItemTypeMRU', mru.slice(0, 5).join(','));
 		
 		return Zotero.Items.get(itemID);
 	}
@@ -1063,10 +1072,17 @@ var ZoteroPane = new function()
 		itemgroup.setSearch('');
 		itemgroup.setTags(getTagSelection());
 		
-		// Enable or disable toolbar icons as necessary
-		const disableIfNoEdit = ["cmd_zotero_newCollection", "zotero-tb-add",
-			"cmd_zotero_newItemFromCurrentPage", "zotero-tb-lookup", "cmd_zotero_newStandaloneNote",
-			"zotero-tb-note-add", "zotero-tb-attachment-add"];
+		// Enable or disable toolbar icons and menu options as necessary
+		const disableIfNoEdit = [
+			"cmd_zotero_newCollection",
+			"cmd_zotero_newSavedSearch",
+			"zotero-tb-add",
+			"cmd_zotero_newItemFromCurrentPage",
+			"zotero-tb-lookup",
+			"cmd_zotero_newStandaloneNote",
+			"zotero-tb-note-add",
+			"zotero-tb-attachment-add"
+		];
 		for(var i=0; i<disableIfNoEdit.length; i++) {
 			var el = document.getElementById(disableIfNoEdit[i]);
 			if(itemgroup.editable) {
@@ -1138,16 +1154,17 @@ var ZoteroPane = new function()
 				var noteEditor = document.getElementById('zotero-note-editor');
 				noteEditor.mode = this.collectionsView.editable ? 'edit' : 'view';
 				
-				// If loading new or different note, disable undo while we repopulate the text field
-				// so Undo doesn't end up clearing the field. This also ensures that Undo doesn't
-				// undo content from another note into the current one.
-				if (!noteEditor.item || noteEditor.item.id != item.id) {
-					noteEditor.disableUndo();
-				}
+				var clearUndo = noteEditor.item ? noteEditor.item.id != item.id : false;
+				
 				noteEditor.parent = null;
 				noteEditor.item = item;
 				
-				noteEditor.enableUndo();
+				// If loading new or different note, disable undo while we repopulate the text field
+				// so Undo doesn't end up clearing the field. This also ensures that Undo doesn't
+				// undo content from another note into the current one.
+				if (clearUndo) {
+					noteEditor.clearUndo();
+				}
 				
 				var viewButton = document.getElementById('zotero-view-note-button');
 				if (this.collectionsView.editable) {
@@ -1238,8 +1255,7 @@ var ZoteroPane = new function()
 					Zotero_Duplicates_Pane.setItems(this.getSelectedItems(), displayNumItemsOnTypeError);
 				}
 				else {
-					// TODO: localize
-					var msg = "Select items to merge";
+					var msg = Zotero.getString('pane.item.selectToMerge');
 					this.setItemPaneMessage(msg);
 				}
 			}
@@ -1519,6 +1535,7 @@ var ZoteroPane = new function()
 		// Remove virtual duplicates collection
 		if (itemGroup.isDuplicates()) {
 			this.setVirtual(itemGroup.ref.libraryID, 'duplicates', false);
+			return;
 		}
 		// Remove virtual unfiled collection
 		else if (itemGroup.isUnfiled()) {
@@ -2122,9 +2139,18 @@ var ZoteroPane = new function()
 		}
 		
 		// Disable some actions if user doesn't have write access
-		var s = [m.editSelectedCollection, m.removeCollection, m.newCollection, m.newSavedSearch, m.newSubcollection];
+		//
+		// Some actions are disabled via their commands in onCollectionSelected()
+		var s = [m.newSubcollection, m.editSelectedCollection, m.removeCollection];
 		if (itemGroup.isWithinGroup() && !itemGroup.editable && !itemGroup.isDuplicates() && !itemGroup.isUnfiled()) {
 			disable = disable.concat(s);
+		}
+		
+		// If within non-editable group or trash it empty, disable Empty Trash
+		if (itemGroup.isTrash()) {
+			if ((itemGroup.isWithinGroup() && !itemGroup.isWithinEditableGroup()) || !this.itemsView.rowCount) {
+				disable.push(m.emptyTrash);
+			}
 		}
 		
 		// Hide and enable all actions by default (so if they're shown they're enabled)
@@ -2665,14 +2691,7 @@ var ZoteroPane = new function()
 			
 			if (Zotero.isStandalone) {
 				if(uri.match(/^https?/)) {
-					var io = Components.classes['@mozilla.org/network/io-service;1']
-								.getService(Components.interfaces.nsIIOService);
-					var uri = io.newURI(uri, null, null);
-					var handler = Components.classes['@mozilla.org/uriloader/external-protocol-service;1']
-								.getService(Components.interfaces.nsIExternalProtocolService)
-								.getProtocolHandlerInfo('http');
-					handler.preferredAction = Components.interfaces.nsIHandlerInfo.useSystemDefault;
-					handler.launchWithURI(uri, null);
+					this.launchURL(uri);
 				} else {
 					ZoteroStandalone.openInViewer(uri);
 				}
@@ -3070,7 +3089,7 @@ var ZoteroPane = new function()
 		if (itemType == 'temporaryPDFHack') {
 			itemType = null;
 			var isPDF = false;
-			if (doc.title.indexOf('application/pdf') != -1) {
+			if (doc.title.indexOf('application/pdf') != -1 || Zotero.Attachments.isPDFJS(doc)) {
 				isPDF = true;
 			}
 			else {
@@ -3159,10 +3178,10 @@ var ZoteroPane = new function()
 		
 		if (item.libraryID) {
 			var group = Zotero.Groups.getByLibraryID(item.libraryID);
-			filesEditable = group.filesEditable;
+			var filesEditable = group.filesEditable;
 		}
 		else {
-			filesEditable = true;
+			var filesEditable = true;
 		}
 		
 		if (saveSnapshot) {
@@ -3186,6 +3205,8 @@ var ZoteroPane = new function()
 		}
 		
 		var self = this;
+		
+		url = Zotero.Utilities.resolveIntermediateURL(url);
 		
 		Zotero.MIME.getMIMETypeFromURL(url, function (mimeType, hasNativeHandler) {
 			// If native type, save using a hidden browser
@@ -3389,26 +3410,121 @@ var ZoteroPane = new function()
 					this.loadURI(url, event);
 				}
 				else {
-					// Some platforms don't have nsILocalFile.launch, so we just
-					// let the Firefox external helper app window handle it
-					try {
-						file.launch();
-					}
-					catch (e) {
-						Zotero.debug("launch() not supported -- passing file to loadUrl()");
-						
-						var uri = Components.classes["@mozilla.org/network/standard-url;1"].
-									createInstance(Components.interfaces.nsIURI);
-						uri.spec = attachment.getLocalFileURL();
-						
-						var nsIEPS = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"].
-										getService(Components.interfaces.nsIExternalProtocolService);
-						nsIEPS.loadUrl(uri);
-					}
+					this.launchFile(file);
 				}
 			}
 			else {
 				this.showAttachmentNotFoundDialog(itemID, noLocateOnMissing);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Launch a file, the best way we can
+	 */
+	this.launchFile = function (file) {
+		try {
+			file.launch();
+		}
+		catch (e) {
+			Zotero.debug("launch() not supported -- trying fallback executable");
+			
+			try {
+				if (Zotero.isWin) {
+					var pref = "fallbackLauncher.windows";
+				}
+				else {
+					var pref = "fallbackLauncher.unix";
+				}
+				var path = Zotero.Prefs.get(pref);
+				
+				var exec = Components.classes["@mozilla.org/file/local;1"]
+							.createInstance(Components.interfaces.nsILocalFile);
+				exec.initWithPath(path);
+				if (!exec.exists()) {
+					throw (path + " does not exist");
+				}
+				
+				var proc = Components.classes["@mozilla.org/process/util;1"]
+								.createInstance(Components.interfaces.nsIProcess);
+				proc.init(exec);
+				
+				var args = [file.path];
+				if (!Zotero.isFx36) {
+					proc.runw(true, args, args.length);
+				}
+				else {
+					proc.run(true, args, args.length);
+				}
+			}
+			catch (e) {
+				Zotero.debug(e);
+				Zotero.debug("Launching via executable failed -- passing to loadUrl()");
+				
+				// If nsILocalFile.launch() isn't available and the fallback
+				// executable doesn't exist, we just let the Firefox external
+				// helper app window handle it
+				var nsIFPH = Components.classes["@mozilla.org/network/protocol;1?name=file"]
+								.getService(Components.interfaces.nsIFileProtocolHandler);
+				var uri = nsIFPH.newFileURI(file);
+				
+				var nsIEPS = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"].
+								getService(Components.interfaces.nsIExternalProtocolService);
+				nsIEPS.loadUrl(uri);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Launch an HTTP URL externally, the best way we can
+	 *
+	 * Used only by Standalone
+	 */
+	this.launchURL = function (url) {
+		if (!url.match(/^https?/)) {
+			throw new Error("launchURL() requires an HTTP(S) URL");
+		}
+		
+		try {
+			var io = Components.classes['@mozilla.org/network/io-service;1']
+						.getService(Components.interfaces.nsIIOService);
+			var uri = io.newURI(url, null, null);
+			var handler = Components.classes['@mozilla.org/uriloader/external-protocol-service;1']
+							.getService(Components.interfaces.nsIExternalProtocolService)
+							.getProtocolHandlerInfo('http');
+			handler.preferredAction = Components.interfaces.nsIHandlerInfo.useSystemDefault;
+			handler.launchWithURI(uri, null);
+		}
+		catch (e) {
+			Zotero.debug("launchWithURI() not supported -- trying fallback executable");
+			
+			if (Zotero.isWin) {
+				var pref = "fallbackLauncher.windows";
+			}
+			else {
+				var pref = "fallbackLauncher.unix";
+			}
+			var path = Zotero.Prefs.get(pref);
+			
+			var exec = Components.classes["@mozilla.org/file/local;1"]
+						.createInstance(Components.interfaces.nsILocalFile);
+			exec.initWithPath(path);
+			if (!exec.exists()) {
+				throw ("Fallback executable not found -- check extensions.zotero." + pref + " in about:config");
+			}
+			
+			var proc = Components.classes["@mozilla.org/process/util;1"]
+							.createInstance(Components.interfaces.nsIProcess);
+			proc.init(exec);
+			
+			var args = [url];
+			if (!Zotero.isFx36) {
+				proc.runw(false, args, args.length);
+			}
+			else {
+				proc.run(false, args, args.length);
 			}
 		}
 	}
@@ -3426,27 +3542,15 @@ var ZoteroPane = new function()
 		var attachment = Zotero.Items.get(itemID)
 		if (attachment.attachmentLinkMode != Zotero.Attachments.LINK_MODE_LINKED_URL) {
 			var file = attachment.getFile();
-			if (file){
+			if (file) {
 				try {
 					file.reveal();
 				}
 				catch (e) {
 					// On platforms that don't support nsILocalFile.reveal() (e.g. Linux),
-					// "double-click" the parent directory
-					try {
-						var parent = file.parent.QueryInterface(Components.interfaces.nsILocalFile);
-						parent.launch();
-					}
-					// If launch also fails, try the OS handler
-					catch (e) {
-						var uri = Components.classes["@mozilla.org/network/io-service;1"].
-									getService(Components.interfaces.nsIIOService).
-									newFileURI(parent);
-						var protocolService =
-							Components.classes["@mozilla.org/uriloader/external-protocol-service;1"].
-								getService(Components.interfaces.nsIExternalProtocolService);
-						protocolService.loadUrl(uri);
-					}
+					// launch the parent directory
+					var parent = file.parent.QueryInterface(Components.interfaces.nsILocalFile);
+					this.launchFile(parent);
 				}
 			}
 			else {
@@ -3497,14 +3601,14 @@ var ZoteroPane = new function()
 	this.displayCannotEditLibraryMessage = function () {
 		var ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
 								.getService(Components.interfaces.nsIPromptService);
-		ps.alert(null, "", "You cannot make changes to the currently selected library.");
+		ps.alert(null, "", Zotero.getString('save.error.cannotMakeChangesToCollection'));
 	}
 	
 	
 	this.displayCannotEditLibraryFilesMessage = function () {
 		var ps = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
 								.getService(Components.interfaces.nsIPromptService);
-		ps.alert(null, "", "You cannot add files to the currently selected library.");
+		ps.alert(null, "", Zotero.getString('save.error.cannotAddFilesToCollection'));
 	}
 	
 	
@@ -3595,9 +3699,9 @@ var ZoteroPane = new function()
 			var parentItemID = item.getSource();
 			var newName = Zotero.Attachments.getFileBaseNameFromItem(parentItemID);
 			
-			var ext = file.leafName.match(/[^\.]+$/);
+			var ext = file.leafName.match(/\.[^\.]+$/);
 			if (ext) {
-				newName = newName + '.' + ext;
+				newName = newName + ext;
 			}
 			
 			var renamed = item.renameAttachmentFile(newName);

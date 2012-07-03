@@ -102,6 +102,10 @@ Zotero.Attachments = new function(){
 			// hmph
 			Zotero.DB.rollbackTransaction();
 			
+			var msg = "Failed importing file " + file.path;
+			Components.utils.reportError(msg);
+			Zotero.debug(msg, 1);
+			
 			try {
 				// Clean up
 				if (itemID) {
@@ -200,7 +204,7 @@ Zotero.Attachments = new function(){
 	
 	
 	function importFromURL(url, sourceItemID, forceTitle, forceFileBaseName, parentCollectionIDs,
-			mimeType, libraryID, callback) {
+			mimeType, libraryID, callback, cookieSandbox) {
 		Zotero.debug('Importing attachment from URL');
 		
 		if (sourceItemID && parentCollectionIDs) {
@@ -221,29 +225,14 @@ Zotero.Attachments = new function(){
 		
 		// Save using a hidden browser
 		var nativeHandlerImport = function () {
-			var browser = Zotero.Browser.createHiddenBrowser();
-			var imported = false;
-			var onpageshow = function() {
-				// ignore spurious about:blank loads
-				if(browser.contentDocument.location.href == "about:blank") return;
-				
-				// pageshow can be triggered multiple times on some pages,
-				// so make sure we only import once
-				// (https://www.zotero.org/trac/ticket/795)
-				if (imported) {
-					return;
-				}
+			var browser = Zotero.HTTP.processDocuments(url, function() {
 				var importCallback = function (item) {
-					browser.removeEventListener("pageshow", onpageshow, false);
 					Zotero.Browser.deleteHiddenBrowser(browser);
 					if(callback) callback(item);
 				};
 				Zotero.Attachments.importFromDocument(browser.contentDocument,
 					sourceItemID, forceTitle, parentCollectionIDs, importCallback, libraryID);
-				imported = true;
-			};
-			browser.addEventListener("pageshow", onpageshow, false);
-			browser.loadURI(url);
+			}, undefined, undefined, true);
 		};
 		
 		// Save using remote web browser persist
@@ -263,6 +252,7 @@ Zotero.Attachments = new function(){
 				.classes["@mozilla.org/embedding/browser/nsWebBrowserPersist;1"]
 				.createInstance(nsIWBP);
 			wbp.persistFlags = nsIWBP.PERSIST_FLAGS_AUTODETECT_APPLY_CONVERSION;
+			if(cookieSandbox) cookieSandbox.attachToInterfaceRequestor(wbp);
 			var encodingFlags = false;
 			
 			Zotero.DB.beginTransaction();
@@ -391,12 +381,12 @@ Zotero.Attachments = new function(){
 		}
 		
 		if (mimeType) {
-			return process(mimeType);
+			return process(mimeType, Zotero.MIME.hasNativeHandler(mimeType));
 		}
 		else {
 			Zotero.MIME.getMIMETypeFromURL(url, function (mimeType, hasNativeHandler) {
 				process(mimeType, hasNativeHandler);
-			});
+			}, cookieSandbox);
 		}
 	}
 	
@@ -502,6 +492,10 @@ Zotero.Attachments = new function(){
 		var url = document.location.href;
 		var title = forceTitle ? forceTitle : document.title;
 		var mimeType = document.contentType;
+		if(Zotero.Attachments.isPDFJS(document)) {
+			mimeType = "application/pdf";
+		}
+		
 		var charsetID = Zotero.CharacterSets.getID(document.characterSet);
 		
 		if (!forceTitle) {
@@ -568,16 +562,16 @@ Zotero.Attachments = new function(){
 				var sync = true;
 				
 				// Load WebPageDump code
+				var wpd = {"Zotero":Zotero};
 				Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
 					.getService(Components.interfaces.mozIJSSubScriptLoader)
-					.loadSubScript("chrome://zotero/content/webpagedump/common.js");
-				
+					.loadSubScript("chrome://zotero/content/webpagedump/common.js", wpd);
 				Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
 					.getService(Components.interfaces.mozIJSSubScriptLoader)
-					.loadSubScript("chrome://zotero/content/webpagedump/domsaver.js");
+					.loadSubScript("chrome://zotero/content/webpagedump/domsaver.js", wpd);
 				
-				wpdDOMSaver.init(file.path, document);
-				wpdDOMSaver.saveHTMLDocument();
+				wpd.wpdDOMSaver.init(file.path, document);
+				wpd.wpdDOMSaver.saveHTMLDocument();
 				
 				attachmentItem.attachmentPath = this.getPath(
 					file, Zotero.Attachments.LINK_MODE_IMPORTED_URL
@@ -1355,5 +1349,23 @@ Zotero.Attachments = new function(){
 					.getService(Components.interfaces.nsIFileProtocolHandler)
 					.getURLSpecFromFile(file);
 		browser.loadURI(url);
+	}
+	
+	/**
+	 * Determines if a given document is an instance of PDFJS
+	 * @return {Boolean}
+	 */
+	this.isPDFJS = function(doc) {
+		// pdf.js HACK
+		if(doc.contentType === "text/html") {
+			var win = doc.defaultView;
+			if(win) {
+				win = win.wrappedJSObject;
+				if(win && "PDFJS" in win && win.PDFJS.isFirefoxExtension) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }

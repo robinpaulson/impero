@@ -241,6 +241,17 @@ Zotero.Utilities.Translate.prototype.processDocuments = function(urls, processor
 		}
 	}
 	
+	for(var i=0; i<urls.length; i++) {
+		if(this._translate.document && this._translate.document.location
+				&& this._translate.document.location.toString() === urls[i]) {
+			// Document is attempting to reload itself
+			Zotero.debug("Translate: Attempted to load the current document using processDocuments; using loaded document instead");
+			processor(this._translate.document, urls[i]);
+			urls.splice(i, 1);
+			i--;
+		}
+	}
+	
 	translate.incrementAsyncProcesses("Zotero.Utilities.Translate#processDocuments");
 	var hiddenBrowser = Zotero.HTTP.processDocuments(urls, function(doc) {
 		if(!processor) return;
@@ -271,6 +282,7 @@ Zotero.Utilities.Translate.prototype.processDocuments = function(urls, processor
  * Gets the DOM document object corresponding to the page located at URL, but avoids locking the
  * UI while the request is in process.
  *
+ * @deprecated
  * @param {String} 		url		URL to load
  * @return {Document} 			DOM document object
  */
@@ -297,6 +309,7 @@ Zotero.Utilities.Translate.prototype.retrieveDocument = function(url) {
 	// should ever take longer than 2 minutes. 
 	var endTime = Date.now() + 120000;
 	while(!loaded && Date.now() < endTime) {
+		// This processNextEvent call is used to handle a deprecated case
 		mainThread.processNextEvent(true);
 	}
 	
@@ -313,6 +326,7 @@ Zotero.Utilities.Translate.prototype.retrieveDocument = function(url) {
  * Gets the source of the page located at URL, but avoids locking the UI while the request is in
  * process.
  *
+ * @deprecated
  * @param {String} 		url					URL to load
  * @param {String}		[body=null]			Request body to POST to the URL; a GET request is
  *											executed if no body is present
@@ -345,6 +359,7 @@ Zotero.Utilities.Translate.prototype.retrieveSource = function(url, body, header
 			var xmlhttp = Zotero.HTTP.doGet(url, listener, responseCharset, this._translate.cookieSandbox);
 		}
 		
+		// This processNextEvent call is used to handle a deprecated case
 		while(!finished) mainThread.processNextEvent(true);
 	} else {
 		// Use a synchronous XMLHttpRequest, even though this is inadvisable

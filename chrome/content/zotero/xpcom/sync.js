@@ -528,7 +528,7 @@ Zotero.Sync.Runner = new function () {
 		
 		if (Zotero.HTTP.browserIsOffline()){
 			this.clearSyncTimeout(); // DEBUG: necessary?
-			var msg = "Zotero cannot sync while Firefox is in offline mode.";
+			var msg = "Zotero cannot sync while " + Zotero.appName + " is in offline mode.";
 			var e = new Zotero.Error(msg, 0, { dialogButtonText: null })
 			this.setSyncIcon('error', e);
 			return false;
@@ -537,7 +537,7 @@ Zotero.Sync.Runner = new function () {
 		if (_running) {
 			// TODO: show status in all windows
 			var msg = "A sync process is already running. To view progress, check "
-				+ "the window in which the sync began or restart Firefox.";
+				+ "the window in which the sync began or restart " + Zotero.appName + ".";
 			var e = new Zotero.Error(msg, 0, { dialogButtonText: null, frontWindowOnly: true })
 			this.setSyncIcon('error', e);
 			return false;
@@ -1057,7 +1057,19 @@ Zotero.Sync.Runner.IdleListener = {
 			return;
 		}
 		
+		// TODO: move to Runner.sync()?
+		if (Zotero.locked) {
+			Zotero.debug('Zotero is locked -- skipping idle sync', 4);
+			return;
+		}
+		
+		if (Zotero.Sync.Server.manualSyncRequired) {
+			Zotero.debug('Manual sync required -- skipping idle sync', 4);
+			return;
+		}
+		
 		Zotero.debug("Beginning idle sync");
+		
 		Zotero.Sync.Runner.sync(true);
 		Zotero.Sync.Runner.setSyncTimeout(this._idleTimeout, true);
 	},
@@ -1460,21 +1472,12 @@ Zotero.Sync.Server = new function () {
 				Zotero.suppressUIUpdates = true;
 				_updatesInProgress = true;
 				
-				var progressMeter = true;
-				if (progressMeter) {
-					Zotero.showZoteroPaneProgressMeter(
-						Zotero.getString('sync.status.processingUpdatedData'),
-						false,
-						"chrome://zotero/skin/arrow_rotate_animated.png"
-					);
-				}
-				
 				var errorHandler = function (e) {
 					Zotero.DB.rollbackTransaction();
 					
 					Zotero.UnresponsiveScriptIndicator.enable();
 					
-					if (progressMeter) {
+					if (Zotero.locked) {
 						Zotero.hideZoteroPaneOverlay();
 					}
 					Zotero.suppressUIUpdates = false;
@@ -1492,7 +1495,7 @@ Zotero.Sync.Server = new function () {
 						function (xmlstr) {
 							Zotero.UnresponsiveScriptIndicator.enable();
 							
-							if (progressMeter) {
+							if (Zotero.locked) {
 								Zotero.hideZoteroPaneOverlay();
 							}
 							Zotero.suppressUIUpdates = false;
@@ -1899,6 +1902,21 @@ Zotero.Sync.Server = new function () {
 							}
 						}
 					}
+					
+					// Make sure this isn't due to relations using a local user key
+					//
+					// TEMP: This can be removed once a DB upgrade step is added
+					try {
+						var sql = "SELECT libraryID FROM relations WHERE libraryID LIKE 'local/%' LIMIT 1";
+						var repl = Zotero.DB.valueQuery(sql);
+						if (repl) {
+							Zotero.Relations.updateUser(repl, repl, Zotero.userID, Zotero.libraryID);
+						}
+					}
+					catch (e) {
+						Components.utils.reportError(e);
+						Zotero.debug(e);
+					}
 					break;
 				
 				case 'FULL_SYNC_REQUIRED':
@@ -2209,6 +2227,10 @@ Zotero.Sync.Server = new function () {
 		}
 		
 		if (lastUserID != userID || lastLibraryID != libraryID) {
+			if (!lastLibraryID) {
+				var repl = "local/" + Zotero.getLocalUserKey();
+			}
+			
 			Zotero.userID = userID;
 			Zotero.libraryID = libraryID;
 			
@@ -2219,6 +2241,11 @@ Zotero.Sync.Server = new function () {
 				
 				Zotero.Sync.Server.resetClient();
 				Zotero.Sync.Storage.resetAllSyncStates();
+			}
+			// Replace local user key with libraryID, in case duplicates were
+			// merged before the first sync
+			else if (!lastLibraryID) {
+				Zotero.Relations.updateUser(repl, repl, userID, libraryID);
 			}
 		}
 		
@@ -2532,15 +2559,26 @@ Zotero.Sync.Server.Data = new function() {
 		}
 		
 		function _timeToYield() {
-			if (progressMeter && Date.now() - lastRepaint > repaintTime) {
+			if (!progressMeter) {
+				if (Date.now() - start > progressMeterThreshold) {
+					Zotero.showZoteroPaneProgressMeter(
+						Zotero.getString('sync.status.processingUpdatedData'),
+						false,
+						"chrome://zotero/skin/arrow_rotate_animated.png"
+					);
+					progressMeter = true;
+				}
+			}
+			else if (Date.now() - lastRepaint > repaintTime) {
 				lastRepaint = Date.now();
 				return true;
 			}
-			
 			return false;
 		}
 		
-		var progressMeter = Zotero.locked;
+		var progressMeter = false;
+		var progressMeterThreshold = 100;
+		var start = Date.now();
 		var repaintTime = 100;
 		var lastRepaint = Date.now();
 		

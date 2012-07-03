@@ -58,7 +58,7 @@
 <!ENTITY zotero.preferences.sync.fileSyncing.url "URL:">
 <!ENTITY zotero.preferences.sync.fileSyncing.myLibrary "Sincronizare fișiere anexate în Biblioteca mea folosind">
 <!ENTITY zotero.preferences.sync.fileSyncing.groups "Sincronizare fișiere anexate într-un grup de biblioteci folosind depozitul Zotero">
-<!ENTITY zotero.preferences.sync.fileSyncing.about "Despre sincronizarea fișierelor">
+<!ENTITY zotero.preferences.sync.fileSyncing.about "About File Syncing">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos1 "Dacă folosești depozitul Zotero, ești de acord să fii conectat la">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos2 "termeni și condiții">
 <!ENTITY zotero.preferences.sync.reset.fullSync "Sincronizare completă cu serverul Zotero">
@@ -106,7 +106,7 @@
 <!ENTITY zotero.preferences.cite.wordProcessors "Procesoare de text">
 <!ENTITY zotero.preferences.cite.wordProcessors.noWordProcessorPluginsInstalled "Niciu plug-in pentru procesorul de text nu este instalat în acest moment.">
 <!ENTITY zotero.preferences.cite.wordProcessors.getPlugins "Obține plug-in-urile pentru procesorul de text...">
-<!ENTITY zotero.preferences.cite.wordProcessors.getPlugins.url "http://www.zotero.org/support/word_processor_plugin_installation">
+<!ENTITY zotero.preferences.cite.wordProcessors.getPlugins.url "http://www.zotero.org/support/word_processor_plugin_installation_for_zotero_2.1">
 <!ENTITY zotero.preferences.cite.wordProcessors.useClassicAddCitationDialog "Use classic Add Citation dialog">
 
 <!ENTITY zotero.preferences.cite.styles.styleManager "Manager de stiluri">

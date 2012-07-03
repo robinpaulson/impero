@@ -43,6 +43,11 @@ Zotero.HTTP = new function() {
 		var channel = xmlhttp.channel;
 		channel.QueryInterface(Components.interfaces.nsIHttpChannelInternal);
 		channel.forceAllowThirdPartyCookie = true;
+		
+		// Set charset
+		if (responseCharset) {
+			channel.contentCharset = responseCharset;
+		}
 	
 		// Don't cache GET requests
 		xmlhttp.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
@@ -52,7 +57,7 @@ Zotero.HTTP = new function() {
 			_stateChange(xmlhttp, onDone, responseCharset);
 		};
 		
-		if(cookieSandbox) cookieSandbox.attachToXHR(xmlhttp);
+		if(cookieSandbox) cookieSandbox.attachToInterfaceRequestor(xmlhttp);
 		xmlhttp.send(null);
 		
 		return xmlhttp;
@@ -94,34 +99,20 @@ Zotero.HTTP = new function() {
 			return false;
 		}
 		
-		// Workaround for "Accept third-party cookies" being off in Firefox 3.0.1
-		// https://www.zotero.org/trac/ticket/1070
-		if (Zotero.isFx30) {
-			const Cc = Components.classes;
-			const Ci = Components.interfaces;
-			var ds = Cc["@mozilla.org/webshell;1"].
-						createInstance(Components.interfaces.nsIDocShellTreeItem).
-						QueryInterface(Ci.nsIInterfaceRequestor);
-			ds.itemType = Ci.nsIDocShellTreeItem.typeContent;
-			var xmlhttp = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
-							createInstance(Ci.nsIXMLHttpRequest);
-			xmlhttp.mozBackgroundRequest = true;
-			xmlhttp.open("POST", url, true);
-			xmlhttp.channel.loadGroup = ds.getInterface(Ci.nsILoadGroup);
-			xmlhttp.channel.loadFlags |= Ci.nsIChannel.LOAD_DOCUMENT_URI;
-		}
-		else {
-			var xmlhttp = Components.classes["@mozilla.org/xmlextras/xmlhttprequest;1"]
-						.createInstance();
-			// Prevent certificate/authentication dialogs from popping up
-			xmlhttp.mozBackgroundRequest = true;
-			xmlhttp.open('POST', url, true);
-			// Send cookie even if "Allow third-party cookies" is disabled (>=Fx3.6 only)
-			if (!Zotero.isFx35) {
-				var channel = xmlhttp.channel;
-				channel.QueryInterface(Components.interfaces.nsIHttpChannelInternal);
-				channel.forceAllowThirdPartyCookie = true;
-			}
+		var xmlhttp = Components.classes["@mozilla.org/xmlextras/xmlhttprequest;1"]
+					.createInstance();
+		// Prevent certificate/authentication dialogs from popping up
+		xmlhttp.mozBackgroundRequest = true;
+		xmlhttp.open('POST', url, true);
+	
+		// Send cookie even if "Allow third-party cookies" is disabled (>=Fx3.6 only)
+		var channel = xmlhttp.channel;
+		channel.QueryInterface(Components.interfaces.nsIHttpChannelInternal);
+		channel.forceAllowThirdPartyCookie = true;
+		
+		// Set charset
+		if (responseCharset) {
+			channel.contentCharset = responseCharset;
 		}
 		
 		if (headers) {
@@ -151,7 +142,7 @@ Zotero.HTTP = new function() {
 			_stateChange(xmlhttp, onDone, responseCharset);
 		};
 		
-		if(cookieSandbox) cookieSandbox.attachToXHR(xmlhttp);
+		if(cookieSandbox) cookieSandbox.attachToInterfaceRequestor(xmlhttp);
 		xmlhttp.send(body);
 		
 		return xmlhttp;
@@ -163,9 +154,10 @@ Zotero.HTTP = new function() {
 	* @param {String} url URL to request
 	* @param {Function} onDone Callback to be executed upon request completion
 	* @param {Object} requestHeaders HTTP headers to include with request
+	* @param {Zotero.CookieSandbox} [cookieSandbox] Cookie sandbox object
 	* @return {Boolean} True if the request was sent, or false if the browser is offline
 	*/
-	this.doHead = function(url, onDone, requestHeaders) {
+	this.doHead = function(url, onDone, requestHeaders, cookieSandbox) {
 		if (url instanceof Components.interfaces.nsIURI) {
 			// Don't display password in console
 			var disp = url.clone();
@@ -229,6 +221,7 @@ Zotero.HTTP = new function() {
 			_stateChange(xmlhttp, onDone);
 		};
 		
+		if(cookieSandbox) cookieSandbox.attachToInterfaceRequestor(xmlhttp);
 		xmlhttp.send(null);
 		
 		return xmlhttp;
@@ -496,6 +489,11 @@ Zotero.HTTP = new function() {
 	 * @return {browser} Hidden browser used for loading
 	 */
 	this.processDocuments = function(urls, processor, done, exception, dontDelete, cookieSandbox) {
+		// (Approximately) how many seconds to wait if the document is left in the loading state and
+		// pageshow is called before we call pageshow with an incomplete document
+		const LOADING_STATE_TIMEOUT = 120;
+		
+		var firedLoadEvent;
 		/**
 		 * Removes event listener for the load event and deletes the hidden browser
 		 */
@@ -511,6 +509,7 @@ Zotero.HTTP = new function() {
 		var doLoad = function() {
 			if(urls.length) {
 				var url = urls.shift();
+				firedLoadEvent = 0;
 				try {
 					Zotero.debug("loading "+url);
 					hiddenBrowser.loadURI(url);
@@ -534,12 +533,19 @@ Zotero.HTTP = new function() {
 		 * @inner
 		 */
 		var onLoad = function() {
-			if(hiddenBrowser.contentDocument.location.href == "about:blank") return;
-			Zotero.debug(hiddenBrowser.contentDocument.location.href+" has been loaded");
-			if(hiddenBrowser.contentDocument.location.href != prevUrl) {	// Just in case it fires too many times
-				prevUrl = hiddenBrowser.contentDocument.location.href;
+			var doc = hiddenBrowser.contentDocument,
+				url = doc.location.href.toString();
+			if(url == "about:blank") return;
+			if(doc.readyState === "loading" && firedLoadEvent < 120) {
+				// Try again in a second	
+				firedLoadEvent++;
+				Zotero.setTimeout(onLoad, 1000);
+				return;
+			}
+			if(url !== prevUrl) {	// Just in case it fires too many times
+				prevUrl = url;
 				try {
-					processor(hiddenBrowser.contentDocument);
+					processor(doc);
 				} catch(e) {
 					removeListeners();
 					if(exception) {

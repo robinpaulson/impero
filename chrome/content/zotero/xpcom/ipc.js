@@ -126,11 +126,11 @@ Zotero.IPC = new function() {
 			}
 		}
 		
-		// On OS X, O_NONBLOCK = 0x0004
+		// On OS X and FreeBSD, O_NONBLOCK = 0x0004
 		// On Linux, O_NONBLOCK = 00004000
 		// On both, O_WRONLY = 0x0001
 		var mode = 0x0001;
-		if(!block) mode = mode | (Zotero.isMac ? 0x0004 : 00004000);
+		if(!block) mode = mode | (Zotero.isLinux ? 00004000 : 0x0004);
 		
 		// Also append to plain files to get things working with Fx 3.6 polling
 		// On OS X, O_APPEND = 0x0008
@@ -272,9 +272,13 @@ Zotero.IPC = new function() {
 						instancePipeOpen = true;
 					}
 					
-					var wroteToPipe = Zotero.IPC.safePipeWrite(pipe, msg+"\n");
+					// Try to write to the pipe once a ms for 100 ms
+					var timeout = Date.now()+100, wroteToPipe;
+					do {
+						wroteToPipe = Zotero.IPC.safePipeWrite(pipe, msg+"\n");
+					} while(Date.now() < timeout && !wroteToPipe);
 					success = success || wroteToPipe;
-					defunct = !wroteToPipe
+					defunct = !wroteToPipe;
 				}
 				
 				if(defunct) {

@@ -39,6 +39,11 @@ Zotero.MIMETypeHandler = new function () {
 			getService(Components.interfaces.nsIObserverService).
 			addObserver(_Observer, "http-on-examine-response", false);
 		this.initializeHandlers();
+		Zotero.addShutdownListener(function() {
+			Components.classes["@mozilla.org/observer-service;1"].
+				getService(Components.interfaces.nsIObserverService).
+				removeObserver(_Observer, "http-on-examine-response", false);
+		});
 	}
 	
 	/**
@@ -53,7 +58,7 @@ Zotero.MIMETypeHandler = new function () {
 			this.addHandler("application/x-endnote-refer", _importHandler, true);
 			this.addHandler("application/x-research-info-systems", _importHandler, true);
 			// Add ISI
-			this.addHandler("application/x-inst-for-Scientific-info", _importHandler, true);
+			this.addHandler("application/x-inst-for-scientific-info", _importHandler, true);
 			//
 			// And some non-standard ones
 			//

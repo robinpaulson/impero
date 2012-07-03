@@ -75,9 +75,16 @@ Zotero.Translate.SandboxManager = function(sandboxLocation) {
 		} else {
 			this.parseFromString = function(str, contentType) _DOMParser.parseFromString(str, contentType);
 		}
-	}
+	};
 	this.sandbox.DOMParser.__exposedProps__ = {"prototype":"r"};
 	this.sandbox.DOMParser.prototype = {};
+	this.sandbox.XMLSerializer = function() {
+		var s = Components.classes["@mozilla.org/xmlextras/xmlserializer;1"]
+			.createInstance(Components.interfaces.nsIDOMSerializer);
+		this.serializeToString = function(doc) {
+			return s.serializeToString(doc.__wrappedDOMObject ? doc.__wrappedDOMObject : doc);
+		};
+	};
 }
 
 /**
@@ -332,10 +339,22 @@ Zotero.Translate.IO.Read = function(file, mode) {
 					// if the regexp continues to fail, this is not UTF-8
 					if(!isUTF8) {
 						// Can't be UTF-8; see if a default charset is defined
-						this._charset = Zotero.Prefs.get("intl.charset.default", true);
+						var prefs = Components.classes["@mozilla.org/preferences-service;1"]
+										.getService(Components.interfaces.nsIPrefBranch);
+						try {
+							this._charset = prefs.getComplexValue("intl.charset.default",
+								Components.interfaces.nsIPrefLocalizedString).toString();
+						} catch(e) {}
 						
-						// ISO-8859-1 by default
-						if(!this._charset) this._charset = "ISO-8859-1";
+						if(!this._charset) {
+							try {
+								this._charset = prefs.getCharPref("intl.charset.default");
+							} catch(e) {}
+							
+							
+							// ISO-8859-1 by default
+							if(!this._charset) this._charset = "ISO-8859-1";
+						}
 						
 						break;
 					}

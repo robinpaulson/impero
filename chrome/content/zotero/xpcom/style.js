@@ -107,6 +107,17 @@ Zotero.Styles = new function() {
 	 * @param {String} id
 	 */
 	this.get = function(id) {
+		// Map some obsolete styles to current ones
+		var mappings = {
+			"http://www.zotero.org/styles/chicago-note": "http://www.zotero.org/styles/chicago-note-bibliography",
+			"http://www.zotero.org/styles/mhra_note_without_bibliography": "http://www.zotero.org/styles/mhra",
+			"http://www.zotero.org/styles/aaa": "http://www.zotero.org/styles/american-anthropological-association"
+		};
+		if(mappings[id]) {
+			Zotero.debug("Mapping " + id + " to " + mappings[id]);
+			id = mappings[id];
+		}
+		
 		if(!_initialized) this.init();
 		return _styles[id] ? _styles[id] : false;
 	}
@@ -169,7 +180,10 @@ Zotero.Styles = new function() {
 				var xml = enConverter.parse();
 			} else {
 				// CSL
-				var xml = new XML(this.cleanXML(style));
+				var xml = this.cleanXML(style);
+				if (!xml.name()) {
+					throw new Error("File is not XML");
+				}
 			}
 		} catch(e) {
 			error = e;

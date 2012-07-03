@@ -376,7 +376,14 @@ Zotero.Fulltext = new function(){
 		
 		// Record number of characters indexed
 		if (!isCacheFile) {
-			var totalChars = this.getTotalCharsFromFile(itemID);
+			try {
+				var totalChars = this.getTotalCharsFromFile(itemID);
+			}
+			catch (e) {
+				Zotero.debug(e);
+				Components.utils.reportError(e);
+				totalChars = 0;
+			}
 			if (maxLength) {
 				var charsIndexed = Math.min(maxLength, totalChars);
 			}
@@ -495,7 +502,7 @@ Zotero.Fulltext = new function(){
 	}
 	
 	
-	function indexItems(items, complete) {
+	function indexItems(items, complete, ignoreErrors) {
 		if (items.constructor.name != 'Array') {
 			items = [items];
 		}
@@ -515,7 +522,19 @@ Zotero.Fulltext = new function(){
 				continue;
 			}
 			
-			this.indexFile(file, i.attachmentMIMEType, i.attachmentCharset, i.id, !complete);
+			if (ignoreErrors) {
+				try {
+					this.indexFile(file, i.attachmentMIMEType, i.attachmentCharset, i.id, !complete);
+				}
+				catch (e) {
+					Zotero.debug(e, 1);
+					Components.utils.reportError("Error indexing " + file.path);
+					Components.utils.reportError(e);
+				}
+			}
+			else {
+				this.indexFile(file, i.attachmentMIMEType, i.attachmentCharset, i.id, !complete);
+			}
 		}
 		
 		Zotero.DB.commitTransaction();
@@ -895,7 +914,7 @@ Zotero.Fulltext = new function(){
 		if (items) {
 			Zotero.DB.query("DELETE FROM fulltextItemWords WHERE itemID IN (" + sql + ")");
 			Zotero.DB.query("DELETE FROM fulltextItems WHERE itemID IN (" + sql + ")");
-			this.indexItems(items);
+			this.indexItems(items, false, true);
 		}
 		Zotero.DB.commitTransaction();
 	}

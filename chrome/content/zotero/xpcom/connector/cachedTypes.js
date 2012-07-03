@@ -78,11 +78,10 @@ Zotero.Connector_Types = new function() {
 			
 			this.getImageSrc = function(idOrName) {
 				var itemType = Zotero.Connector_Types["itemTypes"][idOrName];
-				if(!itemType) return false;
-				var icon = itemType[6]/* icon */;
+				var icon = itemType ? itemType[6]/* icon */ : "treeitem-"+idOrName+".png";
 				
 				if(Zotero.isBookmarklet) {
-					return ZOTERO_CONFIG.BOOKMARKLET_URL+"icons/"+icon;
+					return ZOTERO_CONFIG.BOOKMARKLET_URL+"images/"+icon;
 				} else if(Zotero.isFx) {
 					return "chrome://zotero/skin/"+icon;
 				} else if(Zotero.isChrome) {
@@ -107,8 +106,8 @@ Zotero.Connector_Types = new function() {
 				
 				for(var i=0; i<n; i++) {
 					var creatorType = creatorTypes[itemCreatorTypes[i]];
-					outputTypes.push({"id":creatorType[0]/* id */,
-						"name":creatorType[1]/* name */});
+					outputTypes[i] = {"id":creatorType[0]/* id */,
+						"name":creatorType[1]/* name */};
 				}
 				return outputTypes;
 			};
@@ -130,7 +129,8 @@ Zotero.Connector_Types = new function() {
 				// mimics itemFields.js
 				if(!field || !itemType) return false;
 				
-				return itemType[4]/* fields */.indexOf(field[0]/* id */) !== -1;
+				       /* fields */        /* id */
+				return itemType[4].indexOf(field[0]) !== -1;
 			};
 			
 			this.getFieldIDFromTypeAndBase = function(typeIdOrName, fieldIdOrName) {
@@ -152,7 +152,7 @@ Zotero.Connector_Types = new function() {
 				return false;
 			};
 			
-			this.getBaseIDFromTypeAndField = function(itemType, fieldIdOrName) {
+			this.getBaseIDFromTypeAndField = function(typeIdOrName, fieldIdOrName) {
 				var field = fields[fieldIdOrName], itemType = itemTypes[typeIdOrName];
 				if(!field || !itemType) {
 					throw new Error("Invalid field or type ID");

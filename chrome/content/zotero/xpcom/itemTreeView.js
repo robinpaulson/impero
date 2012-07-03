@@ -759,6 +759,18 @@ Zotero.ItemTreeView.prototype.getCellText = function(row, column)
 		case 'zotero-items-column-accessDate':
 			if (val) {
 				var order = Zotero.Date.getLocaleDateOrder();
+				if (order == 'mdy') {
+					order = 'mdy';
+					var join = '/';
+				}
+				else if (order == 'dmy') {
+					order = 'dmy';
+					var join = '.';
+				}
+				else if (order == 'ymd') {
+					order = 'YMD';
+					var join = '-';
+				}
 				var date = Zotero.Date.sqlToDate(val, true);
 				var parts = [];
 				for (var i=0; i<3; i++) {
@@ -767,16 +779,28 @@ Zotero.ItemTreeView.prototype.getCellText = function(row, column)
 							parts.push(date.getFullYear().toString().substr(2));
 							break;
 							
+						case 'Y':
+							parts.push(date.getFullYear());
+							break;
+						
 						case 'm':
 							parts.push((date.getMonth() + 1));
 							break;
-							
+						
+						case 'M':
+							parts.push(Zotero.Utilities.lpad((date.getMonth() + 1).toString(), '0', 2));
+							break;
+						
 						case 'd':
 							parts.push(date.getDate());
 							break;
+						
+						case 'D':
+							parts.push(Zotero.Utilities.lpad(date.getDate().toString(), '0', 2));
+							break;
 					}
 					
-					val = parts.join('/');
+					val = parts.join(join);
 					val += ' ' + date.toLocaleTimeString();
 				}
 			}
@@ -2054,7 +2078,7 @@ Zotero.ItemTreeView.prototype.onDragStart = function (event) {
 	}
 	
 	// Get Quick Copy format for current URL
-	var url = this._ownerDocument.defaultView.content ?
+	var url = this._ownerDocument.defaultView.content && this._ownerDocument.defaultView.content.location ?
 				this._ownerDocument.defaultView.content.location.href : null;
 	var format = Zotero.QuickCopy.getFormatFromURL(url);
 	
@@ -2385,6 +2409,34 @@ Zotero.ItemTreeView.prototype.canDrop = function(row, orient, dragData)
 				// but do allow PDFs for now so they can be recognized
 				if (item.isWebAttachment() && item.attachmentMIMEType != 'application/pdf') {
 					return false;
+				}
+				
+				// Don't allow children to be dragged within their own parents
+				var parentItemID = item.getSource();
+				var parentIndex = this._itemRowMap[parentItemID];
+				if (this.getLevel(row) > 0) {
+					if (this._getItemAtRow(this.getParentIndex(row)).ref.id == parentItemID) {
+						return false;
+					}
+				}
+				// Including immediately after the parent
+				if (orient == 1) {
+					if (row == parentIndex) {
+						return false;
+					}
+				}
+				// And immediately before the next parent
+				if (orient == -1) {
+					var nextParentIndex = null;
+					for (var i = parentIndex + 1; i < this.rowCount; i++) {
+						if (this.getLevel(i) == 0) {
+							nextParentIndex = i;
+							break;
+						}
+					}
+					if (row === nextParentIndex) {
+						return false;
+					}
 				}
 				
 				// Disallow cross-library child drag

@@ -319,12 +319,21 @@
 				<body>
 				<![CDATA[
 					if (this._editor) {
+						this._iframe.focus();
 						this._editor.focus();
 						this._focus = false;
 					}
 					else {
 						this._focus = true;
 					}
+				]]>
+				</body>
+			</method>
+			
+			<method name="clearUndo">
+				<body>
+				<![CDATA[
+					this._editor.undoManager.clear();
 				]]>
 				</body>
 			</method>
@@ -369,7 +378,7 @@
 										var str = "The NoScript extension is preventing Zotero "
 											+ "from displaying notes. To use NoScript and Zotero together, "
 											+ "whitelist the 'file:' scheme in the NoScript preferences "
-											+ "and restart Firefox.";
+											+ "and restart " + Zotero.appName + ".";
 										warning.appendChild(document.createTextNode(str));
 										break;
 									}
@@ -403,6 +412,7 @@
 								self.value = self._value;
 							}
 							if (self._focus) {
+								self._iframe.focus();
 								self._editor.focus();
 								self._focus = false;
 							}

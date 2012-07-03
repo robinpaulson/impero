@@ -58,7 +58,7 @@
 <!ENTITY zotero.preferences.sync.fileSyncing.url "URL:">
 <!ENTITY zotero.preferences.sync.fileSyncing.myLibrary "Synkronisera bifogade filer i mitt bibliotek med:">
 <!ENTITY zotero.preferences.sync.fileSyncing.groups "Synkronisera bifogade filer i gruppens bibliotek med Zotero storage">
-<!ENTITY zotero.preferences.sync.fileSyncing.about "Om filsynkronisering">
+<!ENTITY zotero.preferences.sync.fileSyncing.about "About File Syncing">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos1 "Genom att använda Zotero Storage går du med på deras">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos2 "affärsvillkor">
 <!ENTITY zotero.preferences.sync.reset.fullSync "Komplett synkronisering med Zotero Server">

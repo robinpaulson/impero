@@ -227,6 +227,10 @@ Zotero.File = new function(){
 		fileName = fileName.replace(/[\/\\\?%\*:|"<>]/g, '');
 		// Replace newlines and tabs (which shouldn't be in the string in the first place) with spaces
 		fileName = fileName.replace(/[\n\t]/g, ' ');
+		// Replace various thin spaces
+		fileName = fileName.replace(/[\u2000-\u200A]/g, ' ');
+		// Replace zero-width spaces
+		fileName = fileName.replace(/[\u200B-\u200E]/g, '');
 		if (!skipXML) {
 			// Strip characters not valid in XML, since they won't sync and they're probably unwanted
 			fileName = fileName.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/g, '');
@@ -351,7 +355,7 @@ Zotero.File = new function(){
 				var opWord = "updated";
 		}
 		
-		if (e.name == 'NS_ERROR_FILE_ACCESS_DENIED'
+		if (e.name == 'NS_ERROR_FILE_ACCESS_DENIED' || e.name == 'NS_ERROR_FILE_IS_LOCKED'
 				// Shows up on some Windows systems
 				|| e.name == 'NS_ERROR_FAILURE') {
 			Zotero.debug(e);
@@ -360,8 +364,9 @@ Zotero.File = new function(){
 			var checkFileWindows = "Check that the file is not currently "
 				+ "in use and that it is not marked as read-only. To check "
 				+ "all files in your Zotero data directory, right-click on "
-				+ "the 'zotero' directory, click Properties, and ensure that "
-				+ "the Read-Only checkbox is empty.";
+				+ "the 'zotero' directory, click Properties, clear "
+				+ "the Read-Only checkbox, and apply the change to all folders "
+				+ "and files in the directory.";
 			var checkFileOther = "Check that the file is not currently "
 				+ "in use and that its permissions allow write access.";
 			var msg = str + " "

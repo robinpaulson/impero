@@ -147,7 +147,7 @@ var wpdDOMSaver = {
 	// initialize the properties (set document, URL, Directory, ...)
   init : function(fileName, document)
 	{                           
-		dump("[wpdDOMSaver.init] ...\n");    
+		Zotero.debug("[wpdDOMSaver.init] ...");    
 		                     
 		this.name = "";                     
 		this.document = null;          
@@ -597,7 +597,8 @@ var wpdDOMSaver = {
 		if ( !aCSStext ) return "";                            
 		
 		// search for "url" entries inside the css
-		var re = new RegExp(/ url\(([^\'\)]+)\)/);
+		// Double-quotes in regexp added by Dan S. for Zotero
+		var re = new RegExp(/ url\("?([^'")]+)"?\)/);
 		var i = 0;
 		while ( aCSStext.match(re) ) {
 			if ( ++i > 20 ) break;  // safer (we try it maximal 20 times for one stylesheet element)
@@ -652,7 +653,7 @@ var wpdDOMSaver = {
 		catch (e) {
 			var msg = "Unable to access cssRules property of " + aCSS.href
 				+ " in wpdDOMSaver.processCSSRecursively()";
-			dump("WebPageDump: "+msg+"\n\n", 2);
+			Zotero.debug("WebPageDump: "+msg, 2);
 			Components.utils.reportError(msg);
 			return "";
 		}
@@ -927,7 +928,7 @@ var wpdDOMSaver = {
   // ("aFileName" is the filename without(!) extension)
 	saveDocumentFile : function(aDocument,aFileName)
 	{
-	  dump("[wpdDOMSaver.saveDocumentFile]: "+aFileName+"\n");
+	  Zotero.debug("[wpdDOMSaver.saveDocumentFile]: "+aFileName);
 	  
 	  	return this.download(this.currentURL,true)
 		/* Wrapper file disabled by Dan S. for Zotero
@@ -972,7 +973,7 @@ var wpdDOMSaver = {
     		} else { 
           CSSText = wpdCommon.ConvertFromUnicode16(CSSText,this.curCharacterSet);		  
     		}  
-			  dump("[wpdDOMSaver.saveDocumentCSS]: "+this.currentDir+aFileName+".css\n");  
+			  Zotero.debug("[wpdDOMSaver.saveDocumentCSS]: "+this.currentDir+aFileName+".css");  
 				// write css file
 				var CSSFile = this.currentDir + aFileName + ".css";   		
 		    if (!wpdCommon.writeFile(CSSText, CSSFile)) 
@@ -989,7 +990,7 @@ var wpdDOMSaver = {
   // (".html" will be added)
 	saveDocumentHTML: function(aDocument,aFileName)
 	{   
-	  dump("[wpdDOMSaver.saveDocumentHTML]: "+this.currentDir+aFileName+".html\n");                           				
+	  Zotero.debug("[wpdDOMSaver.saveDocumentHTML]: "+this.currentDir+aFileName+".html");                           				
 	  this.curDocument = aDocument;         
 	  this.curCharacterSet = aDocument.characterSet;     
 	  var charset=this.curCharacterSet;                        	  	  

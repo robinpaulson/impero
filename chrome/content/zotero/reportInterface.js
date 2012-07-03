@@ -33,20 +33,20 @@ var Zotero_Report_Interface = new function() {
 	/*
 	 * Load a report for the currently selected collection
 	 */
-	function loadCollectionReport() {
+	function loadCollectionReport(event) {
 		var queryString = '';
 		
 		var col = ZoteroPane_Local.getSelectedCollection();
 		var sortColumn = ZoteroPane_Local.getSortField();
 		var sortDirection = ZoteroPane_Local.getSortDirection();
 		if (sortColumn != 'title' || sortDirection != 'ascending') {
-			queryString = '?sort=' + sortColumn + (sortDirection != 'ascending' ? '' : '/d');
+			queryString = '?sort=' + sortColumn + (sortDirection == 'ascending' ? '' : '/d');
 		}
 		
 		if (col) {
 			ZoteroPane_Local.loadURI('zotero://report/collection/'
 				+ Zotero.Collections.getLibraryKeyHash(col)
-				+ '/html/report.html' + queryString);
+				+ '/html/report.html' + queryString, event);
 			return;
 		}
 		
@@ -54,7 +54,7 @@ var Zotero_Report_Interface = new function() {
 		if (s) {
 			ZoteroPane_Local.loadURI('zotero://report/search/'
 				+ Zotero.Searches.getLibraryKeyHash(s)
-				+ '/html/report.html' + queryString);
+				+ '/html/report.html' + queryString, event);
 			return;
 		}
 		
@@ -65,7 +65,7 @@ var Zotero_Report_Interface = new function() {
 	/*
 	 * Load a report for the currently selected items
 	 */
-	function loadItemReport() {
+	function loadItemReport(event) {
 		var items = ZoteroPane_Local.getSelectedItems();
 		
 		if (!items || !items.length) {
@@ -77,7 +77,7 @@ var Zotero_Report_Interface = new function() {
 			keyHashes.push(Zotero.Items.getLibraryKeyHash(item));
 		}
 		
-		ZoteroPane_Local.loadURI('zotero://report/items/' + keyHashes.join('-') + '/html/report.html');
+		ZoteroPane_Local.loadURI('zotero://report/items/' + keyHashes.join('-') + '/html/report.html', event);
 	}
 	
 	

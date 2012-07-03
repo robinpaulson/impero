@@ -50,7 +50,6 @@ Zotero.MIME = new function(){
 		["\uFFFD\uFFFD\uFFFD\uFFFD", 'image/jpeg', 0],
 		["GIF8", 'image/gif', 0],
 		["\uFFFDPNG", 'image/png', 0],
-		["PK\x03\x04", "application/vnd.oasis.opendocument.text", 0],
 		["JFIF", 'image/jpeg'],
 		["FLV", "video/x-flv", 0]
 		
@@ -281,7 +280,7 @@ Zotero.MIME = new function(){
 	}
 	
 	
-	this.getMIMETypeFromURL = function (url, callback) {
+	this.getMIMETypeFromURL = function (url, callback, cookieSandbox) {
 		Zotero.HTTP.doHead(url, function(xmlhttp) {
 			if (xmlhttp.status != 200 && xmlhttp.status != 204) {
 				Zotero.debug("Attachment HEAD request returned with status code "
@@ -309,7 +308,7 @@ Zotero.MIME = new function(){
 			var hasNativeHandler = Zotero.MIME.hasNativeHandler(mimeType, ext)
 			
 			callback(mimeType, hasNativeHandler);
-		});
+		}, undefined, cookieSandbox);
 	}
 	
 	
@@ -354,6 +353,12 @@ Zotero.MIME = new function(){
 		var isNative = hasNativeHandler(mimeType, ext);
 		if (isNative !== null) {
 			return isNative;
+		}
+		
+		if(mimeType === "application/pdf"
+				&& "@mozilla.org/streamconv;1?from=application/pdf&to=*/*" in Components.classes) {
+			// PDF can be handled internally if pdf.js is installed
+			return true;
 		}
 		
 		// Is there a better way to get to navigator?

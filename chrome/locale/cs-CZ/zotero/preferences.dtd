@@ -58,7 +58,7 @@
 <!ENTITY zotero.preferences.sync.fileSyncing.url "URL:">
 <!ENTITY zotero.preferences.sync.fileSyncing.myLibrary "K synchronizaci příloh v Mojí knihovně použít">
 <!ENTITY zotero.preferences.sync.fileSyncing.groups "Synchronizovat přílohy ve skupinových knihovnách pomocí úložiště Zotera">
-<!ENTITY zotero.preferences.sync.fileSyncing.about "Více o synchronizaci souborů">
+<!ENTITY zotero.preferences.sync.fileSyncing.about "About File Syncing">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos1 "Použitím úložiště Zotera souhlasíte s">
 <!ENTITY zotero.preferences.sync.fileSyncing.tos2 "podmínkami a ujednáními">
 <!ENTITY zotero.preferences.sync.reset.fullSync "Plně synchronizovat se Zotero Serverem">
@@ -106,7 +106,7 @@
 <!ENTITY zotero.preferences.cite.wordProcessors "Word Processors">
 <!ENTITY zotero.preferences.cite.wordProcessors.noWordProcessorPluginsInstalled "No word processor plug-ins are currently installed.">
 <!ENTITY zotero.preferences.cite.wordProcessors.getPlugins "Get word processor plug-ins...">
-<!ENTITY zotero.preferences.cite.wordProcessors.getPlugins.url "http://www.zotero.org/support/word_processor_plugin_installation">
+<!ENTITY zotero.preferences.cite.wordProcessors.getPlugins.url "http://www.zotero.org/support/word_processor_plugin_installation_for_zotero_2.1">
 <!ENTITY zotero.preferences.cite.wordProcessors.useClassicAddCitationDialog "Use classic Add Citation dialog">
 
 <!ENTITY zotero.preferences.cite.styles.styleManager "Style Manager">
