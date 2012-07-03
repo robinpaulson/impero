@@ -1,18 +1,30 @@
 Impero is an experimental fork of the Zotero extension for Firefox. It is in no way connected to the organisation behind Zotero, other than re-using the code they have released under the AGPL. It is not blessed by the original authors, and no support is available from them.
 
-The intention of Impero is to make modifications to Zotero, to allow a user to synchronise their data with a server hosted at a location other than on zotero.org.
+The intention of Impero is to make modifications to Zotero, firstly to allow a user to synchronise their data with a server hosted at a location other than on zotero.org. This has been completed and tested.
 
-It also adds to the citation process, by adding a 'quote' item. This allows a user to select some text from a stored reference, and store the quote for later use. Quotes can also be tagged with arbitrary terms, and shown en masse when required, complete with the context which they are situated within. Adding one of these quotes to a document will automatically add the correct citation information, including page number.
+It also adds to the citation process, by adding a 'quote' item. This allows a user to select some text from a stored reference, and store the quote for later use in the Impero library. Quotes can also be tagged with arbitrary terms, and recalled via these tags, when they will be shown complete with the context which they are situated within. Adding one of these quotes to a document will automatically add the correct citation information, including page number. Quotes can also be manually edited, for instance to cut out unnecessary words. To do this, you will need the Firefox addon 'pdf.js', which is a very fast pdf reader embedded directly in the browser. To install pdf.js, go here.
 
-A third change, to allow the quotes function, is the inclusion of a web to pdf function, which will seamlessly convert all your stored references to pdf files. This has the added benefit of reducing the size of your bibliography, by a minimum of 50%. To enable this function, you will need to install 'wkhtmltopdf'. See here for more instructions. This is currently only available for those running free Unix-like operating systems, for example: Ubuntu, Fedora, Slackware, Debian, Mandriva. Support may be added later for certain non-free operating systems.
+A third change, to allow the quotes function on all documents, is the inclusion of a web to pdf converter, which will seamlessly convert all your references currently stored in html format (i.e. all those which are snapshots of web pages) to pdf files. This has the added benefit of reducing the size of your bibliography, by a minimum of 50%. To enable this function, you will need to install 'wkhtmltopdf', small programme which uses the Webkit rendering engine to convert the html files to pdf.
 
-The extension provided here should be considered unstable, and not for use in a production environment.
+This is currently only available for those running free Unix-like operating systems, for example: Ubuntu, Fedora, Slackware, Debian, Mandriva, Opensuse or Arch. Support may be added later for certain non-free operating systems.
+
+If you are using Debian or Ubuntu, you can install wkhtmltopdf by typing:
+
+sudo apt-get install wkhtmltopdf
+
+If you are using Fedora, Mandriva or Opensuse, you can install wkhtmltopdf by typing:
+
+sudo yum install wkhtmltopdf
+
+If you are using Slackware or Arch, you probably already know what you are doing
+
+The extension provided here should be considered alpha/unstable, and not for use in a production environment.
 
 There is a risk of data loss if you do not know what you are doing, specifically when using an alternate sync server.
 
-In order to use the alternate sync server, you will also need to install and set up a data server. See https://github.com/robinpaulson/dataserver.
+In order to use the alternate sync server, you will also need to install and set up a data server. See https://github.com/robinpaulson/dataserver for more information.
 
 The extension is available pre-built from:
 
-Alternatively, run the build-script file to build it yourself. You will need to add in the 'translators' and 'styles' submodules first.
+Alternatively, run the build-script file to build it yourself. You will need to add in the 'translators' and 'styles' sub-modules first.
 
