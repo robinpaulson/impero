@@ -15,3 +15,4 @@ In order to use the alternate sync server, you will also need to install and set
 The extension is available pre-built from:
 
 Alternatively, run the build-script file to build it yourself. You will need to add in the 'translators' and 'styles' submodules first.
+
