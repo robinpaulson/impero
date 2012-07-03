@@ -1,10 +1,6 @@
 Impero is an experimental fork of the Zotero extension for Firefox. It is in no way connected to the organisation behind Zotero, other than re-using the code they have released under the AGPL. It is not blessed by the original authors, and no support is available from them.
 
-<<<<<<< HEAD
 The intention of Impero is to make modifications to Zotero, firstly to allow a user to synchronise their data with a server hosted at a location other than on zotero.org. This has been completed and tested.
-=======
-The intention of Impero is to make modifications to Zotero, initially to allow a user to synchronise their data with a server hosted at a location other than on zotero.org. The scope of the project has now expanded, and includes enhancements to the citation process. See this blog post for more information: http://bumblepuppy.org/blog/?p=397
->>>>>>> 53c32547f12bd0304eecb1ae914998b7f1372344
 
 It also adds to the citation process, by adding a 'quote' item. This allows a user to select some text from a stored reference, and store the quote for later use in the Impero library. Quotes can also be tagged with arbitrary terms, and recalled via these tags, when they will be shown complete with the context which they are situated within. Adding one of these quotes to a document will automatically add the correct citation information, including page number. Quotes can also be manually edited, for instance to cut out unnecessary words. To do this, you will need the Firefox addon 'pdf.js', which is a very fast pdf reader embedded directly in the browser. To install pdf.js, go here.
 
